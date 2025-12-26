@@ -3,116 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EVIA | Official Shop</title>
+    <title>EVIA OFFICIAL | Premium Streetwear</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Oswald:wght@700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { overflow-x: hidden; background-color: #f4f4f4; font-family: 'Inter', sans-serif; }
-        .product-card { transition: 0.3s; border-radius: 12px; overflow: hidden; background: #fff; border: none; }
-        .navbar-brand { font-weight: 900; color: #fb641b !important; letter-spacing: 1px; } 
-        .btn-buy { background-color: #ff9f00; color: white; border: none; border-radius: 6px; font-weight: 800; }
+        :root { --evia-orange: #fb641b; --evia-black: #000000; }
+        body { background-color: #ffffff; font-family: 'Inter', sans-serif; }
         
-        /* Mobile Search Bar Fix */
-        .header-main { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
-        .search-container-header { flex-grow: 1; }
-        .search-container-header input { height: 35px; font-size: 14px; border-radius: 8px 0 0 8px; border: none; }
-        .search-container-header .btn { height: 35px; border-radius: 0 8px 8px 0; border: none; }
+        /* Navbar Official Style */
+        .navbar { border-bottom: 1px solid #eeeeee; padding: 10px 0; }
+        .navbar-brand { font-family: 'Oswald', sans-serif; font-size: 1.8rem; color: var(--evia-black) !important; letter-spacing: -1px; }
 
-        /* Image Display Fix */
-        .img-container { height: 200px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; position: relative; }
-        .img-container img { max-height: 100%; width: 100%; object-fit: cover; }
-        
-        .badge-new { position: absolute; top: 10px; left: 10px; background: #fb641b; font-size: 10px; padding: 4px 8px; border-radius: 4px; z-index: 5; }
+        /* Search Bar Enhancement */
+        .search-container-header input { border: 1px solid #ddd; border-radius: 4px 0 0 4px; height: 42px; }
+        .search-container-header .btn { background: var(--evia-black); color: white; border-radius: 0 4px 4px 0; width: 50px; }
 
-        @media (max-width: 991px) {
-            .navbar-collapse { background: #212529; padding: 20px; border-radius: 0 0 15px 15px; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; }
+        /* Product Card: Bigger & Cleaner */
+        .product-card { border: none; border-radius: 0; transition: 0.3s; margin-bottom: 20px; }
+        .img-container { 
+            height: 280px; /* Bigger image size */
+            background: #f9f9f9; 
+            overflow: hidden; 
+            position: relative; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .img-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
+        .product-card:hover img { transform: scale(1.05); }
+
+        /* Font Perfection */
+        .product-title { font-size: 0.95rem; font-weight: 700; color: #111; margin-top: 12px; letter-spacing: -0.2px; }
+        .product-price { font-size: 1.1rem; font-weight: 900; color: var(--evia-black); }
+        .mrp-price { font-size: 0.85rem; text-decoration: line-through; color: #999; margin-left: 5px; }
+
+        /* Official Footer: Deep Black */
+        .official-footer { background: var(--evia-black); color: #ffffff; padding: 60px 0 30px; }
+        .footer-logo { font-family: 'Oswald', sans-serif; font-size: 2rem; letter-spacing: 2px; color: #fff; }
+        .footer-links a { color: #888; text-decoration: none; font-size: 0.8rem; text-transform: uppercase; margin: 0 10px; transition: 0.3s; }
+        .footer-links a:hover { color: #fff; }
+        .footer-bottom-bar { border-top: 1px solid #222; margin-top: 40px; padding-top: 20px; font-size: 0.7rem; color: #555; letter-spacing: 1px; }
+
+        /* Mobile Adjustments */
+        @media (max-width: 576px) {
+            .img-container { height: 230px; }
+            .navbar-brand { font-size: 1.5rem; }
+            .product-title { font-size: 0.85rem; }
         }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top">
     <div class="container">
-        <div class="header-main">
+        <div class="header-main d-flex align-items-center w-100 justify-content-between">
             <a class="navbar-brand" href="/">EVIA</a>
 
-            <form class="d-flex search-container-header" action="/" method="GET">
-                <input class="form-control" type="search" name="q" placeholder="Search items..." aria-label="Search">
-                <button class="btn btn-warning" type="submit"><i class="fa fa-search"></i></button>
+            <form class="d-flex search-container-header mx-3 flex-grow-1" action="/" method="GET">
+                <input class="form-control" type="search" name="q" placeholder="Search premium items..." aria-label="Search">
+                <button class="btn" type="submit"><i class="fa fa-search"></i></button>
             </form>
 
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-        </div>
-
-        <div class="collapse navbar-collapse" id="navMenu">
-            <div class="navbar-nav ms-auto text-center pt-2">
+            <div class="d-none d-lg-flex gap-3">
                 {% if current_user.is_authenticated %}
-                    <a class="nav-link text-white" href="/profile"><i class="fa fa-shopping-bag"></i> My Orders</a>
-                    <a class="nav-link text-info small" href="/admin_lock"><i class="fa fa-lock"></i> Admin</a>
-                    <a class="btn btn-outline-danger btn-sm mt-2" href="/logout">Logout</a>
+                    <a href="/profile" class="text-dark text-decoration-none small fw-bold">ORDERS</a>
+                    <a href="/logout" class="text-danger text-decoration-none small fw-bold">LOGOUT</a>
                 {% else %}
-                    <a class="nav-link" href="/login">Login</a>
-                    <a class="btn btn-warning btn-sm fw-bold mt-2" href="/signup">Sign Up</a>
+                    <a href="/login" class="text-dark text-decoration-none small fw-bold">LOGIN</a>
                 {% endif %}
             </div>
         </div>
     </div>
 </nav>
 
-<div class="container mt-3">
-    <div class="p-4 rounded shadow-sm text-center text-white" style="background: #000;">
-        <h2 class="fw-bold mb-0" style="font-size: 1.2rem;">FESTIVAL SURPLUS SALE</h2>
-        <p class="small opacity-75 mb-0" style="font-size: 9px; letter-spacing: 2px;">VINTAGE • STREETWEAR • PREMIUM</p>
-    </div>
-</div>
-
-<div class="container mt-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="fw-bold m-0 text-uppercase">Recently Added</h6>
-        <span class="badge bg-white text-dark border">{{ products|length }} Items</span>
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="fw-black mb-0" style="font-weight: 900; letter-spacing: -1px;">NEW ARRIVALS</h2>
+            <p class="text-muted small mb-0">Discover the latest surplus drops.</p>
+        </div>
+        <span class="badge bg-dark rounded-0 px-3 py-2">{{ products|length }} ITEMS</span>
     </div>
 
-    <div class="row g-2">
+    <div class="row g-3 g-md-4">
         {% if products %}
             {% for p in products %}
-            <div class="col-6 col-md-4">
-                <div class="card h-100 product-card shadow-sm">
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="card product-card">
                     <a href="{{ url_for('product_detail', id=p.id) }}" class="text-decoration-none">
                         <div class="img-container">
-                            <span class="badge badge-new">NEW</span>
-                            <img src="{{ p.image }}" alt="{{ p.name }}" onerror="this.src='https://placehold.co/400x500?text=Evia+Shop'">
+                            <span class="badge position-absolute top-0 start-0 m-2 rounded-0 bg-dark" style="font-size: 10px; z-index: 5;">NEW DROP</span>
+                            <img src="{{ p.image }}" alt="{{ p.name }}" onerror="this.src='https://placehold.co/600x800?text=EVIA+OFFICIAL'">
                         </div>
-                        <div class="card-body p-2">
-                            <h6 class="text-dark text-truncate mb-1" style="font-size: 0.8rem; font-weight: 600;">{{ p.name }}</h6>
-                            <div class="d-flex align-items-center">
-                                <span class="text-dark fw-bold" style="font-size: 1rem;">₹{{ p.price }}</span>
-                                <span class="text-muted ms-2" style="font-size: 0.7rem; text-decoration: line-through;">₹{{ p.price + 400 }}</span>
+                        <div class="card-body p-0">
+                            <h6 class="product-title text-truncate">{{ p.name|upper }}</h6>
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="product-price">₹{{ p.price }}</span>
+                                <span class="mrp-price">₹{{ p.price + 500 }}</span>
                             </div>
                         </div>
                     </a>
-                    <div class="px-2 pb-2">
-                        <a href="{{ url_for('buy_now', id=p.id) }}" class="btn btn-buy w-100 btn-sm py-2" style="font-size: 10px;">
-                            BUY NOW
-                        </a>
-                    </div>
+                    <a href="{{ url_for('buy_now', id=p.id) }}" class="btn btn-dark w-100 rounded-0 fw-bold py-2 shadow-sm" style="font-size: 11px; letter-spacing: 1px;">
+                        QUICK BUY
+                    </a>
                 </div>
             </div>
             {% endfor %}
         {% else %}
             <div class="col-12 text-center py-5">
-                <p class="text-muted">No products available today.</p>
-                <a href="/" class="btn btn-dark btn-sm">Refresh</a>
+                <p class="text-muted">No collections available at this moment.</p>
             </div>
         {% endif %}
     </div>
 </div>
 
-<footer class="bg-white border-top py-4 mt-auto">
+<footer class="official-footer">
     <div class="container text-center">
-        <p class="mb-0 small fw-bold text-dark">EVIA SHOPPING INDIA</p>
-        <p class="text-muted small mb-0" style="font-size: 10px;">Secure Payments • 7 Day Returns</p>
+        <div class="footer-logo mb-4">EVIA</div>
+        
+        <div class="footer-links mb-4">
+            <a href="#">Shop</a>
+            <a href="#">Returns</a>
+            <a href="#">Shipping</a>
+            <a href="/admin_lock">Admin Access</a>
+        </div>
+
+        <div class="d-flex justify-content-center gap-4 mb-4">
+            <i class="fab fa-instagram fa-lg"></i>
+            <i class="fab fa-facebook fa-lg"></i>
+            <i class="fab fa-whatsapp fa-lg"></i>
+        </div>
+
+        <div class="footer-bottom-bar">
+            <div class="mb-2">SECURE PAYMENTS BY RAZORPAY & STRIPE</div>
+            <div>© 2025 EVIA SHOPPING INDIA. ALL RIGHTS RESERVED.</div>
+        </div>
     </div>
 </footer>
 
