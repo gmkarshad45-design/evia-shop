@@ -122,6 +122,15 @@ def signup():
         db.session.commit()
         return redirect(url_for('login'))
     return render_template('signup.html')
+    @app.route('/')
+def index():
+    query = request.args.get('q')
+    if query:
+        # This searches for the text in the product name
+        products = Product.query.filter(Product.name.contains(query)).all()
+    else:
+        products = Product.query.all()
+    return render_template('index.html', products=products)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
