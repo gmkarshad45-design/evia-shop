@@ -5,9 +5,10 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'mysupersecretshop'
+app.config['SECRET_KEY'] = 'evia_shop_secure_key_1321'
 
 # --- DATABASE CONFIGURATION ---
+# Handles Render Postgres (Singapore) and Local SQLite fallback
 database_url = os.getenv("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -54,8 +55,7 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
-# --- ROUTES ---
-
+# --- MAIN ROUTES ---
 @app.route('/')
 def index():
     products = Product.query.all()
@@ -69,11 +69,10 @@ def signup():
         passwd = request.form.get('password')
         
         if User.query.filter_by(email=email).first():
-            flash("Email already taken!")
+            flash("Email already registered!")
             return redirect(url_for('signup'))
             
-        hashed_pw = generate_password_hash(passwd)
-        new_user = User(full_name=name, email=email, password=hashed_pw)
+        new_user = User(full_name=name, email=email, password=generate_password_hash(passwd))
         db.session.add(new_user)
         db.session.commit()
         flash("Registration Successful! Please Login.")
@@ -87,24 +86,22 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('index'))
-        flash("Invalid Credentials")
+        flash("Invalid Email or Password")
     return render_template('login.html')
 
 @app.route('/logout')
 def logout():
     logout_user()
-    session.pop('admin_verified', None)
     return redirect(url_for('index'))
 
-# --- ADMIN ROUTES (FIXED) ---
-
+# --- ADMIN PANEL ROUTES ---
 @app.route('/admin_lock', methods=['GET', 'POST'])
 def admin_lock():
     if request.method == 'POST':
         if request.form.get('admin_pass') == ADMIN_SECRET_PASS:
             session['admin_verified'] = True
             return redirect(url_for('admin'))
-        flash("Invalid Master Key!")
+        flash("Incorrect Master Key!")
     return render_template('admin_lock.html')
 
 @app.route('/admin', methods=['GET', 'POST'])
@@ -125,7 +122,7 @@ def admin():
             )
             db.session.add(p)
             db.session.commit()
-            flash("Product added successfully!")
+            flash("Product published successfully!")
         except Exception as e:
             db.session.rollback()
             flash(f"Error: {str(e)}")
@@ -135,31 +132,22 @@ def admin():
     orders = Order.query.order_by(Order.id.desc()).all() 
     return render_template('admin.html', products=products, orders=orders)
 
-# --- CHECKOUT ROUTE ---
-@app.route('/checkout', methods=['GET', 'POST'])
-@login_required
-def checkout():
-    cart_ids = session.get('cart', [])
-    items = [Product.query.get(i) for i in cart_ids if Product.query.get(i)]
-    total = sum(i.price for i in items)
-    
-    if request.method == 'POST':
-        addr = f"{request.form.get('house')}, {request.form.get('dist')}, {request.form.get('state')} - {request.form.get('pin')}"
-        summary = f"ITEMS: {', '.join([i.name for i in items])} | ADDR: {addr}"
-        new_order = Order(product_details=summary, total_price=total, user_id=current_user.id)
-        db.session.add(new_order)
-        db.session.commit()
-        session.pop('cart', None)
-        return redirect(url_for('profile'))
-        
-    return render_template('checkout.html', items=items, total=total)
+@app.route('/delete/<int:id>')
+def delete_product(id):
+    if not session.get('admin_verified'):
+        return redirect(url_for('admin_lock'))
+    p = Product.query.get_or_404(id)
+    db.session.delete(p)
+    db.session.commit()
+    flash("Item removed from Inventory.")
+    return redirect(url_for('admin'))
 
-@app.route('/profile')
-@login_required
-def profile():
-    my_orders = Order.query.filter_by(user_id=current_user.id).all()
-    return render_template('profile.html', orders=my_orders)
+@app.route('/admin_logout')
+def admin_logout():
+    session.pop('admin_verified', None)
+    return redirect(url_for('index'))
 
+# --- RENDER PORT BINDING ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
