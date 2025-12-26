@@ -25,7 +25,7 @@
             <h4 class="fw-bold mb-4 text-center"><i class="fa fa-user-shield"></i> Admin</h4>
             <ul class="nav flex-column">
                 <li class="nav-item"><a class="nav-link active" href="#"><i class="fa fa-tachometer-alt me-2"></i> Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="/admin_logout text-danger"><i class="fa fa-lock me-2"></i> Lock Panel</a></li>
+                <li class="nav-item"><a class="nav-link text-danger" href="/admin_logout"><i class="fa fa-lock me-2"></i> Lock Panel</a></li>
                 <li class="nav-item"><a class="nav-link" href="/"><i class="fa fa-eye me-2"></i> View Shop</a></li>
             </ul>
         </nav>
@@ -176,10 +176,26 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3"><label class="form-label">Name</label><input type="text" name="name" class="form-control" required></div>
-                <div class="mb-3"><label class="form-label">Price (₹)</label><input type="number" name="price" class="form-control" required></div>
-                <div class="mb-3"><label class="form-label">Image URL</label><input type="text" name="image_url" class="form-control" required></div>
-                <div class="mb-3"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3"></textarea></div>
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Price (₹)</label>
+                    <input type="number" name="price" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Primary Image URL</label>
+                    <input type="text" name="image_url" class="form-control" placeholder="Main product image" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Secondary Image URL</label>
+                    <input type="text" name="image_2_url" class="form-control" placeholder="Optional: second image link">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="3"></textarea>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
