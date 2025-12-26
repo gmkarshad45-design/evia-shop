@@ -104,7 +104,7 @@ def checkout():
         db.session.commit()
         
         flash("Success")
-        return redirect(url_for('checkout'))
+        return redirect(url_for('profile'))
         
     return render_template('checkout.html', product=product)
 
@@ -131,6 +131,7 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('index'))
+        flash("Invalid Credentials")
     return render_template('login.html')
 
 @app.route('/logout')
@@ -194,17 +195,13 @@ def admin():
         return redirect(url_for('admin'))
     
     products = Product.query.all()
-    orders = Order.query.all()
+    orders = Order.query.order_by(Order.id.desc()).all()
     return render_template('admin.html', products=products, orders=orders)
 
-# --- CRITICAL FIX FOR TRACKER ---
 @app.route('/admin/update_status/<int:id>/<string:new_status>')
 def update_order_status(id, new_status):
     if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
     order = Order.query.get_or_404(id)
-    
-    # This matches the button clicks from admin.html to the database
-    # It ensures spaces like 'Out for Delivery' are saved correctly
     order.status = new_status
     db.session.commit()
     flash(f"Order #{id} updated to {new_status}")
