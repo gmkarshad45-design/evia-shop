@@ -50,16 +50,11 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- DATABASE INITIALIZATION ---
-def init_db():
-    try:
-        with app.app_context():
-            db.create_all()
-            print("🟢 Database Ready.")
-    except Exception as e:
-        print(f"🔴 DB Error: {e}")
-
-init_db()
+# --- DATABASE INITIALIZATION (Safe Mode) ---
+with app.app_context():
+    db.create_all()
+    # This ensures that if you add columns later, the app won't crash
+    print("🟢 Database & Columns Initialized.")
 
 # --- MAIN ROUTES ---
 @app.route('/')
@@ -72,13 +67,14 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# FIXED: Removed duplicate buy_now functions
 @app.route('/buy/<int:id>')
+@login_required
 def buy_now(id):
     session['checkout_item'] = id
     return redirect(url_for('checkout'))
 
 @app.route('/checkout', methods=['GET', 'POST'])
+@login_required
 def checkout():
     product_id = session.get('checkout_item')
     if not product_id:
@@ -87,12 +83,31 @@ def checkout():
     product = Product.query.get(product_id)
     
     if request.method == 'POST':
-        # Logic to handle order
-        flash("Order Placed!")
-        return redirect(url_for('index'))
+        # Collect customer details from form
+        phone = request.form.get('phone')
+        addr = request.form.get('address')
+        dist = request.form.get('district')
+        pin = request.form.get('pincode')
+        state = request.form.get('state')
+
+        # Format details into a clean string for Admin to read
+        full_details = f"Product: {product.name} | WA: {phone} | Addr: {addr}, {dist}, {state} - {pin}"
+
+        new_order = Order(
+            product_details=full_details,
+            total_price=product.price,
+            user_id=current_user.id,
+            status="Placed"
+        )
+        db.session.add(new_order)
+        db.session.commit()
+        
+        flash("Success") # This triggers the success screen in checkout.html
+        return redirect(url_for('checkout'))
         
     return render_template('checkout.html', product=product)
 
+# --- AUTH ROUTES ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -121,6 +136,31 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+# --- PROFILE & ORDER ACTIONS ---
+@app.route('/profile')
+@login_required
+def profile():
+    user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
+    return render_template('profile.html', orders=user_orders)
+
+@app.route('/cancel_order/<int:id>')
+@login_required
+def cancel_order(id):
+    order = Order.query.get_or_404(id)
+    if order.user_id == current_user.id:
+        order.status = "Cancelled"
+        db.session.commit()
+    return redirect(url_for('profile'))
+
+@app.route('/return_order/<int:id>')
+@login_required
+def return_order(id):
+    order = Order.query.get_or_404(id)
+    if order.user_id == current_user.id:
+        order.status = "Return Requested"
+        db.session.commit()
+    return redirect(url_for('profile'))
 
 # --- ADMIN ROUTES ---
 @app.route('/admin_lock', methods=['GET', 'POST'])
@@ -151,6 +191,14 @@ def admin():
     orders = Order.query.all()
     return render_template('admin.html', products=products, orders=orders)
 
+@app.route('/admin/update_status/<int:id>/<string:new_status>')
+def update_order_status(id, new_status):
+    if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
+    order = Order.query.get_or_404(id)
+    order.status = new_status
+    db.session.commit()
+    return redirect(url_for('admin'))
+
 @app.route('/delete/<int:id>')
 def delete_product(id):
     if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
@@ -159,48 +207,6 @@ def delete_product(id):
     db.session.commit()
     return redirect(url_for('admin'))
 
-# --- PROFILE & ORDER ACTIONS ---
-
-@app.route('/profile')
-@login_required
-def profile():
-    # Fetch orders belonging only to the logged-in user
-    user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
-    return render_template('profile.html', orders=user_orders)
-
-@app.route('/cancel_order/<int:id>')
-@login_required
-def cancel_order(id):
-    order = Order.query.get_or_404(id)
-    # Security: Ensure user owns the order before cancelling
-    if order.user_id == current_user.id:
-        order.status = "Cancelled"
-        db.session.commit()
-        flash("Order cancelled successfully.")
-    return redirect(url_for('profile'))
-
-@app.route('/return_order/<int:id>')
-@login_required
-def return_order(id):
-    order = Order.query.get_or_404(id)
-    # Security: Ensure user owns the order before returning
-    if order.user_id == current_user.id:
-        order.status = "Return Requested"
-        db.session.commit()
-        flash("Return request sent to Admin.")
-    return redirect(url_for('profile'))
-
-# --- ADMIN ACTION: Update Order Status ---
-@app.route('/admin/update_status/<int:id>/<string:new_status>')
-def update_order_status(id, new_status):
-    if not session.get('admin_verified'):
-        return redirect(url_for('admin_lock'))
-    order = Order.query.get_or_404(id)
-    order.status = new_status
-    db.session.commit()
-    return redirect(url_for('admin'))
-
-# --- RENDER PORT BINDING ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
