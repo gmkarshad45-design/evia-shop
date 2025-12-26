@@ -159,6 +159,47 @@ def delete_product(id):
     db.session.commit()
     return redirect(url_for('admin'))
 
+# --- PROFILE & ORDER ACTIONS ---
+
+@app.route('/profile')
+@login_required
+def profile():
+    # Fetch orders belonging only to the logged-in user
+    user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
+    return render_template('profile.html', orders=user_orders)
+
+@app.route('/cancel_order/<int:id>')
+@login_required
+def cancel_order(id):
+    order = Order.query.get_or_404(id)
+    # Security: Ensure user owns the order before cancelling
+    if order.user_id == current_user.id:
+        order.status = "Cancelled"
+        db.session.commit()
+        flash("Order cancelled successfully.")
+    return redirect(url_for('profile'))
+
+@app.route('/return_order/<int:id>')
+@login_required
+def return_order(id):
+    order = Order.query.get_or_404(id)
+    # Security: Ensure user owns the order before returning
+    if order.user_id == current_user.id:
+        order.status = "Return Requested"
+        db.session.commit()
+        flash("Return request sent to Admin.")
+    return redirect(url_for('profile'))
+
+# --- ADMIN ACTION: Update Order Status ---
+@app.route('/admin/update_status/<int:id>/<string:new_status>')
+def update_order_status(id, new_status):
+    if not session.get('admin_verified'):
+        return redirect(url_for('admin_lock'))
+    order = Order.query.get_or_404(id)
+    order.status = new_status
+    db.session.commit()
+    return redirect(url_for('admin'))
+
 # --- RENDER PORT BINDING ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
