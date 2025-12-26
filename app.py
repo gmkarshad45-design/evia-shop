@@ -50,16 +50,20 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- DATABASE INITIALIZATION (Safe Mode) ---
+# --- DATABASE INITIALIZATION ---
 with app.app_context():
     db.create_all()
-    # This ensures that if you add columns later, the app won't crash
     print("🟢 Database & Columns Initialized.")
 
 # --- MAIN ROUTES ---
 @app.route('/')
 def index():
-    products = Product.query.all()
+    query = request.args.get('q')
+    if query:
+        # Search functionality for the search bar
+        products = Product.query.filter(Product.name.contains(query)).all()
+    else:
+        products = Product.query.all()
     return render_template('index.html', products=products)
 
 @app.route('/product/<int:id>')
@@ -83,14 +87,12 @@ def checkout():
     product = Product.query.get(product_id)
     
     if request.method == 'POST':
-        # Collect customer details from form
         phone = request.form.get('phone')
         addr = request.form.get('address')
         dist = request.form.get('district')
         pin = request.form.get('pincode')
         state = request.form.get('state')
 
-        # Format details into a clean string for Admin to read
         full_details = f"Product: {product.name} | WA: {phone} | Addr: {addr}, {dist}, {state} - {pin}"
 
         new_order = Order(
@@ -102,7 +104,7 @@ def checkout():
         db.session.add(new_order)
         db.session.commit()
         
-        flash("Success") # This triggers the success screen in checkout.html
+        flash("Success")
         return redirect(url_for('checkout'))
         
     return render_template('checkout.html', product=product)
@@ -122,15 +124,6 @@ def signup():
         db.session.commit()
         return redirect(url_for('login'))
     return render_template('signup.html')
-    @app.route('/')
-def index():
-    query = request.args.get('q')
-    if query:
-        # This searches for the text in the product name
-        products = Product.query.filter(Product.name.contains(query)).all()
-    else:
-        products = Product.query.all()
-    return render_template('index.html', products=products)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -179,6 +172,11 @@ def admin_lock():
             session['admin_verified'] = True
             return redirect(url_for('admin'))
     return render_template('admin_lock.html')
+
+@app.route('/admin_logout')
+def admin_logout():
+    session.pop('admin_verified', None)
+    return redirect(url_for('index'))
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
