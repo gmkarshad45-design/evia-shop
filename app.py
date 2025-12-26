@@ -160,6 +160,43 @@ def admin_logout():
     session.pop('admin_verified', None)
     return redirect(url_for('index'))
 
+# --- UPDATED BUY NOW & CHECKOUT LOGIC ---
+
+@app.route('/buy/<int:id>')
+def buy_now(id):
+    product = Product.query.get_or_404(id)
+    # Store the specific product ID in the session for checkout
+    session['checkout_item'] = id
+    return redirect(url_for('checkout'))
+
+@app.route('/checkout', methods=['GET', 'POST'])
+@login_required
+def checkout():
+    product_id = session.get('checkout_item')
+    if not product_id:
+        return redirect(url_for('index'))
+    
+    product = Product.query.get(product_id)
+    
+    if request.method == 'POST':
+        address = request.form.get('address')
+        phone = request.form.get('phone')
+        
+        # Create the order in the database
+        new_order = Order(
+            product_details=f"Product: {product.name} | Phone: {phone} | Address: {address}",
+            total_price=product.price,
+            user_id=current_user.id,
+            status="Placed"
+        )
+        
+        db.session.add(new_order)
+        db.session.commit()
+        
+        flash("Order Placed Successfully! We will contact you.")
+        return redirect(url_for('index'))
+        
+    return render_template('checkout.html', product=product)
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
