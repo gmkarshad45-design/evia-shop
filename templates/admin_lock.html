@@ -1,1 +1,66 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Access Locked</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .lock-container {
+            text-align: center;
+            margin-top: 100px;
+            padding: 20px;
+        }
+        .lock-icon {
+            font-size: 50px;
+            margin-bottom: 20px;
+        }
+        .login-box {
+            display: inline-block;
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        }
+        input {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="lock-container">
+        <div class="lock-icon">🔒</div>
+        <h2>Restricted Area</h2>
+        <p>You must be an administrator to view this page.</p>
+        
+        <div class="login-box">
+            <form action="{{ url_for('admin_login') }}" method="POST">
+                <input type="text" name="username" placeholder="Admin Username" required>
+                <input type="password" name="password" placeholder="Password" required>
+                <button type="submit">Unlock Dashboard</button>
+            </form>
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <p style="color: red;">{{ messages[0] }}</p>
+              {% endif %}
+            {% endwith %}
+        </div>
+        <br>
+        <a href="/">Return to Shop</a>
+    </div>
+</body>
+</html>
