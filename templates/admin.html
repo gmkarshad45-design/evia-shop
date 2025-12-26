@@ -105,6 +105,8 @@
                                         <td>
                                             {% if order.status == 'Return Requested' %}
                                                 <span class="badge bg-danger badge-pulse">RETURN REQ</span>
+                                            {% elif order.status == 'Out for Delivery' %}
+                                                <span class="badge bg-warning text-dark">Out for Delivery</span>
                                             {% else %}
                                                 <span class="badge bg-info text-white">{{ order.status }}</span>
                                             {% endif %}
@@ -127,13 +129,17 @@
                                                     <div class="p-2 bg-light border rounded mb-3 small" style="word-break: break-word;">
                                                         {{ order.product_details }}
                                                     </div>
-                                                    <div class="d-flex justify-content-between mb-3">
-                                                        <span class="small">Price:</span>
-                                                        <span class="fw-bold text-success">₹{{ order.total_price }}</span>
+                                                    
+                                                    <p class="mb-1 small"><strong>Update Tracking Status:</strong></p>
+                                                    <div class="btn-group w-100 mb-3">
+                                                        <a href="{{ url_for('update_order_status', id=order.id, new_status='Shipped') }}" class="btn btn-sm btn-outline-primary">Shipped</a>
+                                                        <a href="{{ url_for('update_order_status', id=order.id, new_status='Out for Delivery') }}" class="btn btn-sm btn-outline-warning">Out for Delivery</a>
+                                                        <a href="{{ url_for('update_order_status', id=order.id, new_status='Delivered') }}" class="btn btn-sm btn-outline-success">Delivered</a>
                                                     </div>
-                                                    <div class="btn-group w-100">
-                                                        <a href="{{ url_for('update_order_status', id=order.id, new_status='Shipped') }}" class="btn btn-sm btn-outline-primary">Ship</a>
-                                                        <a href="{{ url_for('update_order_status', id=order.id, new_status='Delivered') }}" class="btn btn-sm btn-outline-success">Deliver</a>
+                                                    
+                                                    <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                                                        <span class="small">Total Price:</span>
+                                                        <span class="fw-bold text-success">₹{{ order.total_price }}</span>
                                                     </div>
                                                 </div>
                                             </div>
