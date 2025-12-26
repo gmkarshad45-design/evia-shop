@@ -50,11 +50,19 @@ class Order(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+# --- DATABASE INITIALIZATION (PRO VERSION) ---
+def init_db():
+    try:
+        with app.app_context():
+            db.create_all()
+            print("🟢 Database tables created/verified successfully.")
+    except Exception as e:
+        print(f"🔴 Database initialization failed: {e}")
+        # This prevents the app from crashing immediately
+        pass
 
-# --- DATABASE INITIALIZATION ---
-with app.app_context():
-    db.create_all()
-
+# Call the function
+init_db()
 # --- MAIN ROUTES ---
 @app.route('/')
 def index():
