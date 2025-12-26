@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout | Evia Shop</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; padding: 20px; }
+        .checkout-box { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        h2 { color: #075e54; text-align: center; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; color: #444; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
+        .wa-btn { background-color: #25d366; color: white; border: none; width: 100%; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+        .wa-btn:hover { background-color: #128c7e; }
+    </style>
+</head>
+<body>
+
+<div class="checkout-box">
+    <h2>Delivery Address</h2>
+    <form id="orderForm">
+        <div class="input-group">
+            <label>Full Name</label>
+            <input type="text" id="name" placeholder="Enter your name" required>
+        </div>
+
+        <div class="input-group">
+            <label>Phone Number (WhatsApp)</label>
+            <input type="tel" id="phone" placeholder="91XXXXXXXX" required>
+        </div>
+
+        <div class="input-group">
+            <label>House No. / Building Name</label>
+            <input type="text" id="house" placeholder="Flat No. 101, Evia Heights" required>
+        </div>
+
+        <div class="input-group">
+            <label>State</label>
+            <select id="state" required>
+                <option value="">Select State</option>
+                <option value="Andhra Pradesh">Andhra Pradesh</option>
+                <option value="Bihar">Bihar</option>
+                <option value="Delhi">Delhi</option>
+                <option value="Gujarat">Gujarat</option>
+                <option value="Karnataka">Karnataka</option>
+                <option value="Maharashtra">Maharashtra</option>
+                <option value="Tamil Nadu">Tamil Nadu</option>
+                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                <option value="West Bengal">West Bengal</option>
+                </select>
+        </div>
+
+        <div class="input-group">
+            <label>District</label>
+            <input type="text" id="district" placeholder="Enter District" required>
+        </div>
+
+        <div class="input-group">
+            <label>Pincode</label>
+            <input type="number" id="pincode" placeholder="6-digit Pincode" required>
+        </div>
+
+        <button type="button" class="wa-btn" onclick="sendToWhatsApp()">Order via WhatsApp</button>
+    </form>
+</div>
+
+<script>
+function sendToWhatsApp() {
+    // 1. Enter your WhatsApp number here (with 91, no plus or spaces)
+    const myNumber = "91XXXXXXXXXX"; 
+
+    // 2. Get the values from the form
+    const name = document.getElementById('name').value;
+    const phone = document.getElementById('phone').value;
+    const house = document.getElementById('house').value;
+    const state = document.getElementById('state').value;
+    const district = document.getElementById('district').value;
+    const pincode = document.getElementById('pincode').value;
+
+    if(!name || !phone || !house || !state || !district || !pincode) {
+        alert("Please fill all details!");
+        return;
+    }
+
+    // 3. Create the message
+    const message = `*NEW ORDER FROM EVIA SHOP*%0A%0A` +
+                    `*Name:* ${name}%0A` +
+                    `*Phone:* ${phone}%0A` +
+                    `*House:* ${house}%0A` +
+                    `*District:* ${district}%0A` +
+                    `*State:* ${state}%0A` +
+                    `*Pincode:* ${pincode}%0A%0A` +
+                    `Please confirm my order.`;
+
+    // 4. Open WhatsApp
+    const waUrl = `https://wa.me/${myNumber}?text=${message}`;
+    window.open(waUrl, '_blank');
+}
+</script>
+
+</body>
+</html>
