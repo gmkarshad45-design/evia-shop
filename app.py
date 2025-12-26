@@ -34,7 +34,7 @@ class Product(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     image = db.Column(db.String(500)) 
-    image_2 = db.Column(db.String(500))
+    image_2 = db.Column(db.String(500)) # Column for second image
     description = db.Column(db.Text)    
     stock = db.Column(db.Integer, default=10)
     category = db.Column(db.String(50))
@@ -184,14 +184,17 @@ def admin():
         return redirect(url_for('admin_lock'))
     
     if request.method == 'POST':
+        # FIXED: Now capturing image_2_url from the form
         p = Product(
             name=request.form.get('name'), 
             price=int(request.form.get('price')), 
             image=request.form.get('image_url'),
+            image_2=request.form.get('image_2_url'), # Saved here
             description=request.form.get('description')
         )
         db.session.add(p)
         db.session.commit()
+        flash("Product added successfully!")
         return redirect(url_for('admin'))
     
     products = Product.query.all()
