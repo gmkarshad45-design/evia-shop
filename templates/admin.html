@@ -77,10 +77,9 @@
                                 <div class="col-6"><input type="number" name="price" class="form-control" placeholder="Price ₹" required></div>
                                 <div class="col-6"><input type="number" name="stock" class="form-control" placeholder="Stock Qty" required></div>
                             </div>
-                            <input type="text" name="category" class="form-control mb-2" placeholder="Category (e.g. Shoes, Watch)">
+                            <input type="text" name="category" class="form-control mb-2" placeholder="Category">
                             <textarea name="description" class="form-control mb-2" placeholder="Product Details" rows="2"></textarea>
-                            <input type="text" name="image_url" class="form-control mb-2" placeholder="Main Image Link (Paste ImgBB Link here)" required>
-                            <input type="text" name="image_url_2" class="form-control mb-3" placeholder="Second Image Link (Optional)">
+                            <input type="text" name="image_url" class="form-control mb-2" placeholder="Image Link" required>
                             <button class="btn btn-primary w-100 fw-bold shadow-sm">ADD TO STORE</button>
                         </form>
                     </div>
@@ -94,25 +93,52 @@
                                 <thead class="table-light small">
                                     <tr>
                                         <th>ID</th>
-                                        <th>Details</th>
-                                        <th>Amount</th>
                                         <th>Status</th>
+                                        <th>Amount</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody class="small">
                                     {% for order in orders %}
                                     <tr>
                                         <td>#{{ order.id }}</td>
-                                        <td><div style="max-width: 200px;" class="text-truncate">{{ order.product_details }}</div></td>
-                                        <td class="fw-bold text-success">₹{{ order.total_price }}</td>
                                         <td>
                                             {% if order.status == 'Return Requested' %}
                                                 <span class="badge bg-danger badge-pulse">RETURN REQ</span>
                                             {% else %}
-                                                <span class="badge bg-info text-white">Placed</span>
+                                                <span class="badge bg-info text-white">{{ order.status }}</span>
                                             {% endif %}
                                         </td>
+                                        <td class="fw-bold text-success">₹{{ order.total_price }}</td>
+                                        <td>
+                                            <button class="btn btn-dark btn-sm py-0" style="font-size: 10px;" data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">VIEW</button>
+                                        </td>
                                     </tr>
+
+                                    <div class="modal fade" id="orderModal{{ order.id }}" tabindex="-1">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content border-0">
+                                                <div class="modal-header bg-dark text-white p-2 px-3">
+                                                    <h6 class="modal-title">Order #{{ order.id }}</h6>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p class="mb-1 small"><strong>Full Address & Details:</strong></p>
+                                                    <div class="p-2 bg-light border rounded mb-3 small" style="word-break: break-word;">
+                                                        {{ order.product_details }}
+                                                    </div>
+                                                    <div class="d-flex justify-content-between mb-3">
+                                                        <span class="small">Price:</span>
+                                                        <span class="fw-bold text-success">₹{{ order.total_price }}</span>
+                                                    </div>
+                                                    <div class="btn-group w-100">
+                                                        <a href="{{ url_for('update_order_status', id=order.id, new_status='Shipped') }}" class="btn btn-sm btn-outline-primary">Ship</a>
+                                                        <a href="{{ url_for('update_order_status', id=order.id, new_status='Delivered') }}" class="btn btn-sm btn-outline-success">Deliver</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     {% else %}
                                     <tr><td colspan="4" class="text-center text-muted">No orders yet.</td></tr>
                                     {% endfor %}
@@ -133,7 +159,7 @@
                                 <img src="{{ p.image }}" class="product-item-img mb-1" onerror="this.src='https://placehold.co/80x80?text=NO+IMAGE'">
                                 <p class="small mb-1 text-truncate fw-bold" style="font-size: 11px;">{{ p.name }}</p>
                                 <p class="small text-primary mb-1 fw-bold">₹{{ p.price }}</p>
-                                <a href="{{ url_for('delete_product', id=p.id) }}" class="btn btn-sm btn-danger w-100 mt-auto py-0" style="font-size: 10px;" onclick="return confirm('Permanently remove this item?')">DELETE</a>
+                                <a href="{{ url_for('delete_product', id=p.id) }}" class="btn btn-sm btn-danger w-100 mt-auto py-0" style="font-size: 10px;" onclick="return confirm('Remove?')">DELETE</a>
                             </div>
                         </div>
                         {% endfor %}
