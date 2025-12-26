@@ -60,7 +60,6 @@ with app.app_context():
 def index():
     query = request.args.get('q')
     if query:
-        # Search functionality for the search bar
         products = Product.query.filter(Product.name.contains(query)).all()
     else:
         products = Product.query.all()
@@ -198,12 +197,17 @@ def admin():
     orders = Order.query.all()
     return render_template('admin.html', products=products, orders=orders)
 
+# --- CRITICAL FIX FOR TRACKER ---
 @app.route('/admin/update_status/<int:id>/<string:new_status>')
 def update_order_status(id, new_status):
     if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
     order = Order.query.get_or_404(id)
+    
+    # This matches the button clicks from admin.html to the database
+    # It ensures spaces like 'Out for Delivery' are saved correctly
     order.status = new_status
     db.session.commit()
+    flash(f"Order #{id} updated to {new_status}")
     return redirect(url_for('admin'))
 
 @app.route('/delete/<int:id>')
