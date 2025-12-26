@@ -8,7 +8,6 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'evia_shop_secure_key_1321'
 
 # --- DATABASE CONFIGURATION ---
-# Handles Render Postgres (Singapore) and Local SQLite fallback
 database_url = os.getenv("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -50,7 +49,8 @@ class Order(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
-# --- DATABASE INITIALIZATION (PRO VERSION) ---
+
+# --- DATABASE INITIALIZATION ---
 def init_db():
     try:
         with app.app_context():
@@ -58,16 +58,25 @@ def init_db():
             print("🟢 Database tables created/verified successfully.")
     except Exception as e:
         print(f"🔴 Database initialization failed: {e}")
-        # This prevents the app from crashing immediately
         pass
 
-# Call the function
 init_db()
+
 # --- MAIN ROUTES ---
 @app.route('/')
 def index():
     products = Product.query.all()
     return render_template('index.html', products=products)
+
+# ADDED: This route fixes the "Internal Server Error" BuildError
+@app.route('/buy/<int:id>')
+def buy_now(id):
+    # This matches the url_for('buy_now') in your HTML
+    return redirect(url_for('checkout'))
+
+@app.route('/checkout')
+def checkout():
+    return "Checkout Page - Order Logic Coming Soon"
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -75,15 +84,13 @@ def signup():
         name = request.form.get('full_name')
         email = request.form.get('email')
         passwd = request.form.get('password')
-        
         if User.query.filter_by(email=email).first():
             flash("Email already registered!")
             return redirect(url_for('signup'))
-            
         new_user = User(full_name=name, email=email, password=generate_password_hash(passwd))
         db.session.add(new_user)
         db.session.commit()
-        flash("Registration Successful! Please Login.")
+        flash("Registration Successful!")
         return redirect(url_for('login'))
     return render_template('signup.html')
 
@@ -116,7 +123,6 @@ def admin_lock():
 def admin():
     if not session.get('admin_verified'):
         return redirect(url_for('admin_lock'))
-
     if request.method == 'POST':
         try:
             p = Product(
@@ -135,7 +141,6 @@ def admin():
             db.session.rollback()
             flash(f"Error: {str(e)}")
         return redirect(url_for('admin'))
-    
     products = Product.query.all()
     orders = Order.query.order_by(Order.id.desc()).all() 
     return render_template('admin.html', products=products, orders=orders)
@@ -155,7 +160,6 @@ def admin_logout():
     session.pop('admin_verified', None)
     return redirect(url_for('index'))
 
-# --- RENDER PORT BINDING ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
