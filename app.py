@@ -7,7 +7,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysupersecretshop'
 
-# --- CONFIGURATION ---
+# --- DATABASE CONFIGURATION ---
+# This ensures it works on Render (Postgres) and Local (SQLite)
 database_url = os.getenv("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -21,7 +22,7 @@ login_manager.login_view = 'login'
 
 ADMIN_SECRET_PASS = "razi1321"
 
-# --- MODELS ---
+# --- SQL MODELS ---
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False) 
@@ -43,7 +44,6 @@ class Order(db.Model):
     product_details = db.Column(db.Text) 
     total_price = db.Column(db.Integer)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    # NEW: Status column for Admin notifications
     status = db.Column(db.String(50), default="Placed")
 
 @login_manager.user_loader
@@ -52,11 +52,22 @@ def load_user(user_id):
 
 # --- DATABASE INITIALIZATION ---
 with app.app_context():
-    # UNCOMMENT the line below for ONE deploy to add the 'status' column, then comment it back.
+    # If you see a '500 Error' after adding columns, 
+    # uncomment db.drop_all(), run once, then comment it again.
     # db.drop_all() 
     db.create_all()
 
-# --- ADMIN ROUTES ---
+# --- ROUTES ---
+
+@app.route('/')
+def index():
+    q = request.args.get('q')
+    query = Product.query
+    if q: 
+        query = query.filter(Product.name.contains(q))
+    return render_template('index.html', products=query.all())
+
+# Admin Login Logic
 @app.route('/admin_lock', methods=['GET', 'POST'])
 def admin_lock():
     if request.method == 'POST':
@@ -65,11 +76,6 @@ def admin_lock():
             return redirect(url_for('admin'))
         flash("Invalid Master Key!")
     return render_template('admin_lock.html')
-
-@app.route('/admin_logout')
-def admin_logout():
-    session.pop('admin_verified', None)
-    return redirect(url_for('index'))
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -80,8 +86,8 @@ def admin():
         try:
             p = Product(
                 name=request.form.get('name'), 
-                price=request.form.get('price'), 
-                stock=request.form.get('stock'), 
+                price=int(request.form.get('price')), 
+                stock=int(request.form.get('stock')), 
                 category=request.form.get('category'), 
                 description=request.form.get('description'),
                 image=request.form.get('image_url'),
@@ -99,50 +105,6 @@ def admin():
     orders = Order.query.order_by(Order.id.desc()).all() 
     return render_template('admin.html', products=products, orders=orders)
 
-@app.route('/delete/<int:id>')
-def delete_product(id):
-    if session.get('admin_verified'):
-        p = Product.query.get(id)
-        if p:
-            db.session.delete(p)
-            db.session.commit()
-    return redirect(url_for('admin'))
-
-# --- USER ROUTES ---
-@app.route('/')
-def index():
-    q = request.args.get('q')
-    query = Product.query
-    if q: query = query.filter(Product.name.contains(q))
-    return render_template('index.html', products=query.all())
-
-@app.route('/profile')
-@login_required
-def profile():
-    my_orders = Order.query.filter_by(user_id=current_user.id).all()
-    return render_template('profile.html', orders=my_orders)
-
-@app.route('/cancel_order/<int:id>')
-@login_required
-def cancel_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id:
-        db.session.delete(order)
-        db.session.commit()
-        flash("Order has been cancelled.")
-    return redirect(url_for('profile'))
-
-@app.route('/return_order/<int:id>')
-@login_required
-def return_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id:
-        order.status = "Return Requested"
-        db.session.commit()
-        flash("Return request sent to Admin.")
-    return redirect(url_for('profile'))
-
-# --- AUTH & CHECKOUT ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -171,14 +133,8 @@ def login():
 @app.route('/logout')
 def logout():
     logout_user()
+    session.pop('admin_verified', None)
     return redirect(url_for('index'))
-
-@app.route('/buy/<int:id>')
-def buy_now(id):
-    if not current_user.is_authenticated:
-        return redirect(url_for('signup'))
-    session['cart'] = [id] 
-    return redirect(url_for('checkout'))
 
 @app.route('/checkout', methods=['GET', 'POST'])
 @login_required
@@ -186,14 +142,25 @@ def checkout():
     cart_ids = session.get('cart', [])
     items = [Product.query.get(i) for i in cart_ids if Product.query.get(i)]
     total = sum(i.price for i in items)
+    
     if request.method == 'POST':
-        summary = f"ITEMS: {', '.join([i.name for i in items])} | ADDR: {request.form.get('address')}"
+        # Get address details from form
+        addr = f"{request.form.get('house')}, {request.form.get('dist')}, {request.form.get('state')} - {request.form.get('pin')}"
+        summary = f"ITEMS: {', '.join([i.name for i in items])} | ADDR: {addr} | Ph: {request.form.get('phone')}"
+        
         new_order = Order(product_details=summary, total_price=total, user_id=current_user.id)
         db.session.add(new_order)
         db.session.commit()
         session.pop('cart', None)
         return redirect(url_for('profile'))
+        
     return render_template('checkout.html', items=items, total=total)
+
+@app.route('/profile')
+@login_required
+def profile():
+    my_orders = Order.query.filter_by(user_id=current_user.id).all()
+    return render_template('profile.html', orders=my_orders)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
