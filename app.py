@@ -24,8 +24,8 @@ ADMIN_SECRET_PASS = "razi1321"
 # --- SQL MODELS ---
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    full_name = db.Column(db.String(150), nullable=False) # Updated
-    email = db.Column(db.String(150), unique=True, nullable=False) # Updated
+    full_name = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(500), nullable=False)
     orders = db.relationship('Order', backref='customer', lazy=True)
 
@@ -52,8 +52,6 @@ def load_user(user_id):
 
 # --- DATABASE INITIALIZATION ---
 with app.app_context():
-    # If you changed columns, uncomment drop_all, run once, then comment it again.
-    # db.drop_all() 
     db.create_all()
 
 # --- ROUTES ---
@@ -92,7 +90,75 @@ def login():
         flash("Invalid Credentials")
     return render_template('login.html')
 
-# (Include your admin and checkout routes here as they were)
+@app.route('/logout')
+def logout():
+    logout_user()
+    session.pop('admin_verified', None)
+    return redirect(url_for('index'))
+
+# --- ADMIN ROUTES (FIXED) ---
+
+@app.route('/admin_lock', methods=['GET', 'POST'])
+def admin_lock():
+    if request.method == 'POST':
+        if request.form.get('admin_pass') == ADMIN_SECRET_PASS:
+            session['admin_verified'] = True
+            return redirect(url_for('admin'))
+        flash("Invalid Master Key!")
+    return render_template('admin_lock.html')
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+    if not session.get('admin_verified'):
+        return redirect(url_for('admin_lock'))
+
+    if request.method == 'POST':
+        try:
+            p = Product(
+                name=request.form.get('name'), 
+                price=int(request.form.get('price')), 
+                stock=int(request.form.get('stock')), 
+                category=request.form.get('category'), 
+                description=request.form.get('description'),
+                image=request.form.get('image_url'),
+                image_2=request.form.get('image_url_2')
+            )
+            db.session.add(p)
+            db.session.commit()
+            flash("Product added successfully!")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error: {str(e)}")
+        return redirect(url_for('admin'))
+    
+    products = Product.query.all()
+    orders = Order.query.order_by(Order.id.desc()).all() 
+    return render_template('admin.html', products=products, orders=orders)
+
+# --- CHECKOUT ROUTE ---
+@app.route('/checkout', methods=['GET', 'POST'])
+@login_required
+def checkout():
+    cart_ids = session.get('cart', [])
+    items = [Product.query.get(i) for i in cart_ids if Product.query.get(i)]
+    total = sum(i.price for i in items)
+    
+    if request.method == 'POST':
+        addr = f"{request.form.get('house')}, {request.form.get('dist')}, {request.form.get('state')} - {request.form.get('pin')}"
+        summary = f"ITEMS: {', '.join([i.name for i in items])} | ADDR: {addr}"
+        new_order = Order(product_details=summary, total_price=total, user_id=current_user.id)
+        db.session.add(new_order)
+        db.session.commit()
+        session.pop('cart', None)
+        return redirect(url_for('profile'))
+        
+    return render_template('checkout.html', items=items, total=total)
+
+@app.route('/profile')
+@login_required
+def profile():
+    my_orders = Order.query.filter_by(user_id=current_user.id).all()
+    return render_template('profile.html', orders=my_orders)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
