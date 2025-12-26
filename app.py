@@ -19,6 +19,7 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+# Updated password as per your script
 ADMIN_SECRET_PASS = "evia54321"
 
 # --- SQL MODELS ---
@@ -34,7 +35,7 @@ class Product(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     image = db.Column(db.String(500)) 
-    image_2 = db.Column(db.String(500)) # Column for second image
+    image_2 = db.Column(db.String(500)) # Ensure this matches your template
     description = db.Column(db.Text)    
     stock = db.Column(db.Integer, default=10)
     category = db.Column(db.String(50))
@@ -103,7 +104,7 @@ def checkout():
         db.session.add(new_order)
         db.session.commit()
         
-        flash("Success")
+        flash("Order Placed Successfully!")
         return redirect(url_for('profile'))
         
     return render_template('checkout.html', product=product)
@@ -153,6 +154,7 @@ def cancel_order(id):
     if order.user_id == current_user.id:
         order.status = "Cancelled"
         db.session.commit()
+        flash("Order Cancelled")
     return redirect(url_for('profile'))
 
 @app.route('/return_order/<int:id>')
@@ -162,6 +164,7 @@ def return_order(id):
     if order.user_id == current_user.id:
         order.status = "Return Requested"
         db.session.commit()
+        flash("Return Requested")
     return redirect(url_for('profile'))
 
 # --- ADMIN ROUTES ---
@@ -171,6 +174,8 @@ def admin_lock():
         if request.form.get('admin_pass') == ADMIN_SECRET_PASS:
             session['admin_verified'] = True
             return redirect(url_for('admin'))
+        else:
+            flash("Incorrect Admin Password")
     return render_template('admin_lock.html')
 
 @app.route('/admin_logout')
@@ -184,12 +189,11 @@ def admin():
         return redirect(url_for('admin_lock'))
     
     if request.method == 'POST':
-        # FIXED: Now capturing image_2_url from the form
         p = Product(
             name=request.form.get('name'), 
             price=int(request.form.get('price')), 
             image=request.form.get('image_url'),
-            image_2=request.form.get('image_2_url'), # Saved here
+            image_2=request.form.get('image_2_url'), 
             description=request.form.get('description')
         )
         db.session.add(p)
