@@ -19,7 +19,7 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-ADMIN_SECRET_PASS = "razi1321"
+ADMIN_SECRET_PASS = "evia54321"
 
 # --- SQL MODELS ---
 class User(db.Model, UserMixin):
