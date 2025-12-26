@@ -25,7 +25,6 @@
         .track-icon { width: 25px; height: 25px; background: #fff; border: 2px solid #e0e0e0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 5px auto; font-size: 12px; color: #ccc; transition: 0.3s; }
         .track-text { font-size: 9px; font-weight: bold; color: #999; text-transform: uppercase; }
         
-        /* Active State Colors */
         .track-step.active .track-icon { background: #26a541; border-color: #26a541; color: white; box-shadow: 0 0 8px rgba(38, 165, 65, 0.4); }
         .track-step.active .track-text { color: #26a541; }
         
@@ -33,10 +32,6 @@
             .sidebar-mobile { display: none; }
             .desktop-sidebar { position: sticky; top: 20px; }
             .track-text { font-size: 11px; }
-        }
-        @media (max-width: 767px) {
-            .desktop-sidebar { display: none; }
-            .main-content { padding-top: 20px; }
         }
     </style>
 </head>
@@ -89,22 +84,18 @@
                     {% if order.status != "Cancelled" %}
                     <div class="track-container">
                         <div class="track-line"></div>
-                        
                         <div class="track-step {% if order.status in ['Placed', 'Shipped', 'Out for Delivery', 'Delivered'] %}active{% endif %}">
                             <div class="track-icon"><i class="fa fa-check"></i></div>
                             <div class="track-text">Placed</div>
                         </div>
-
                         <div class="track-step {% if order.status in ['Shipped', 'Out for Delivery', 'Delivered'] %}active{% endif %}">
                             <div class="track-icon"><i class="fa fa-truck"></i></div>
                             <div class="track-text">Shipped</div>
                         </div>
-
                         <div class="track-step {% if order.status in ['Out for Delivery', 'Delivered'] %}active{% endif %}">
                             <div class="track-icon"><i class="fa fa-motorcycle"></i></div>
                             <div class="track-text">Out for Delivery</div>
                         </div>
-
                         <div class="track-step {% if order.status == 'Delivered' %}active{% endif %}">
                             <div class="track-icon"><i class="fa fa-home"></i></div>
                             <div class="track-text">Delivered</div>
@@ -121,7 +112,7 @@
                         <p class="text-muted small mb-0" style="line-height: 1.4;">{{ order.product_details }}</p>
                     </div>
 
-                    <div class="d-flex justify-content-between align-items-end">
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
                         <div>
                             <p class="mb-0 text-muted small">Total Paid</p>
                             <h5 class="fw-bold text-primary mb-0">₹{{ order.total_price }}</h5>
@@ -129,15 +120,19 @@
                         
                         <div class="d-flex gap-2">
                             {% if order.status == "Placed" %}
-                                <a href="{{ url_for('cancel_order', id=order.id) }}" class="btn btn-sm btn-outline-danger px-3 fw-bold" onclick="return confirm('Cancel order?')">CANCEL</a>
-                            {% endif %}
-                            
-                            {% if order.status == "Delivered" %}
-                                <a href="{{ url_for('return_order', id=order.id) }}" class="btn btn-sm btn-outline-secondary px-3 fw-bold">RETURN</a>
+                                <a href="{{ url_for('cancel_order', id=order.id) }}" 
+                                   class="btn btn-sm btn-outline-danger fw-bold" 
+                                   onclick="return confirm('Cancel this order?')">CANCEL</a>
                             {% endif %}
 
-                            <a href="https://wa.me/91XXXXXXXXXX?text=Help with Order #{{ order.id }}" class="btn btn-sm btn-success px-3 fw-bold">
-                                <i class="fab fa-whatsapp"></i> HELP
+                            {% if order.status == "Delivered" %}
+                                <a href="{{ url_for('return_order', id=order.id) }}" 
+                                   class="btn btn-sm btn-outline-secondary fw-bold">RETURN</a>
+                            {% endif %}
+
+                            <a href="https://wa.me/91XXXXXXXXXX?text=Help with Order #{{ order.id }}" 
+                               class="btn btn-sm btn-success fw-bold">
+                               <i class="fab fa-whatsapp"></i> HELP
                             </a>
                         </div>
                     </div>
