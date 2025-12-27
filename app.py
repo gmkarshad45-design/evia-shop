@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'evia_shop_secure_key_1321'
 
-# --- DATABASE ---
+# --- DATABASE CONFIGURATION ---
 database_url = os.getenv("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -75,36 +75,15 @@ def add_to_cart(id):
     cart.append(id)
     session['cart'] = cart
     session.modified = True
+    flash("Added to bag")
     return redirect(url_for('view_cart'))
 
-@app.route('/remove_from_cart/<int:id>')
-def remove_from_cart(id):
-    if 'cart' in session:
-        cart = list(session['cart'])
-        if id in cart:
-            cart.remove(id)
-            session['cart'] = cart
-            session.modified = True
-    return redirect(url_for('view_cart'))
-
-# --- CHECKOUT & ORDER ROUTES ---
-
-@app.route('/checkout_cart')
-@login_required
-def checkout_cart():
-    session['checkout_mode'] = 'cart'
-    return redirect(url_for('checkout'))
-
-@app.route('/buy/<int:id>')
-@login_required
-def buy_now(id):
-    session['checkout_mode'] = 'single'
-    session['single_id'] = id
-    return redirect(url_for('checkout'))
+# --- CHECKOUT & ORDER LOGIC ---
 
 @app.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
+    # Logic to get items based on session mode (cart or single)
     items = []
     if session.get('checkout_mode') == 'cart':
         items = [Product.query.get(pid) for pid in session.get('cart', []) if Product.query.get(pid)]
@@ -116,27 +95,41 @@ def checkout():
     total = sum(i.price for i in items)
 
     if request.method == 'POST':
-        addr = f"{request.form.get('address')}, {request.form.get('pincode')}"
+        cust_name = request.form.get('full_name')
+        phone = request.form.get('phone')
+        addr = f"{request.form.get('address')}, {request.form.get('district')}, {request.form.get('state')} - {request.form.get('pincode')}"
         item_names = ", ".join([i.name for i in items])
         
         new_order = Order(
-            product_details=f"Items: {item_names} | Address: {addr} | Phone: {request.form.get('phone')}",
+            product_details=f"Items: {item_names} | Address: {addr} | Phone: {phone}",
             total_price=total,
             user_id=current_user.id
         )
         db.session.add(new_order)
         db.session.commit()
         
+        # Clear cart if it was a cart checkout
         if session.get('checkout_mode') == 'cart': session.pop('cart', None)
-        flash("Order Confirmed!")
+        
+        flash("Order Placed Successfully")
         return redirect(url_for('profile'))
 
-    return render_template('checkout.html', product=items[0], total=total, items=items)
+    return render_template('checkout.html', product=items[0], total=total, items=items, count=len(items))
+
+# --- PROFILE & ORDER ACTIONS (The missing fixes) ---
+
+@app.route('/profile')
+@login_required
+def profile():
+    # Fetch all orders for the current user
+    orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
+    return render_template('profile.html', orders=orders)
 
 @app.route('/cancel_order/<int:id>')
 @login_required
 def cancel_order(id):
     order = Order.query.get_or_404(id)
+    # Security: Ensure the user only cancels their own order
     if order.user_id == current_user.id and order.status == "Placed":
         order.status = "Cancelled"
         db.session.commit()
@@ -150,14 +143,8 @@ def return_order(id):
     if order.user_id == current_user.id and order.status == "Delivered":
         order.status = "Return Requested"
         db.session.commit()
-        flash("Return Requested")
+        flash("Return request submitted")
     return redirect(url_for('profile'))
-
-@app.route('/profile')
-@login_required
-def profile():
-    orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
-    return render_template('profile.html', orders=orders)
 
 # --- AUTH & ADMIN ---
 
@@ -168,22 +155,8 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('index'))
+        flash("Invalid Credentials")
     return render_template('login.html')
-
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=pw)
-        db.session.add(new_user)
-        db.session.commit()
-        return redirect(url_for('login'))
-    return render_template('signup.html')
-
-@app.route('/logout')
-def logout():
-    logout_user()
-    return redirect(url_for('index'))
 
 @app.route('/admin_lock', methods=['GET', 'POST'])
 def admin_lock():
@@ -192,13 +165,9 @@ def admin_lock():
         return redirect(url_for('admin'))
     return render_template('admin_lock.html')
 
-@app.route('/admin', methods=['GET', 'POST'])
+@app.route('/admin')
 def admin():
     if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
-    if request.method == 'POST':
-        p = Product(name=request.form.get('name'), price=int(request.form.get('price')), image=request.form.get('image_url'))
-        db.session.add(p)
-        db.session.commit()
     return render_template('admin.html', products=Product.query.all(), orders=Order.query.all())
 
 if __name__ == '__main__':
