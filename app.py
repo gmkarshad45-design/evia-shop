@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -53,6 +53,8 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
+# --- ROUTES ---
+
 @app.route('/')
 def index():
     query = request.args.get('q')
@@ -63,6 +65,35 @@ def index():
 def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
+
+@app.route('/add_to_cart/<int:product_id>')
+def add_to_cart(product_id):
+    if 'cart' not in session:
+        session['cart'] = []
+    
+    # Use a copy to ensure session detects change
+    temp_cart = list(session['cart'])
+    temp_cart.append(product_id)
+    session['cart'] = temp_cart
+    session.modified = True 
+    
+    return jsonify({"status": "success", "cart_count": len(session['cart'])})
+
+@app.route('/cart')
+def view_cart():
+    if 'cart' not in session or not session['cart']:
+        return render_template('cart.html', items=[], total=0)
+    
+    # We fetch products one by one to handle multiple quantities of same ID
+    cart_items = []
+    total_price = 0
+    for pid in session['cart']:
+        product = Product.query.get(pid)
+        if product:
+            cart_items.append(product)
+            total_price += product.price
+            
+    return render_template('cart.html', items=cart_items, total=total_price)
 
 @app.route('/buy/<int:id>')
 @login_required
@@ -76,6 +107,7 @@ def checkout():
     product_id = session.get('checkout_item')
     if not product_id: return redirect(url_for('index'))
     product = Product.query.get(product_id)
+    
     if request.method == 'POST':
         cust_name = request.form.get('full_name')
         phone = request.form.get('phone')
@@ -83,22 +115,31 @@ def checkout():
         dist = request.form.get('district')
         pin = request.form.get('pincode')
         state = request.form.get('state')
-        # Combined details for admin
+        
         full_details = f"NAME: {cust_name} | WA: {phone} | ITEM: {product.name} | ADDR: {addr}, {dist}, {state} - {pin}"
         new_order = Order(product_details=full_details, total_price=product.price, user_id=current_user.id)
         db.session.add(new_order)
         db.session.commit()
         flash("Order Placed Successfully!")
         return redirect(url_for('profile'))
+        
     return render_template('checkout.html', product=product)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=generate_password_hash(request.form.get('password')))
-        db.session.add(new_user)
-        db.session.commit()
-        return redirect(url_for('login'))
+        hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
+        new_user = User(
+            full_name=request.form.get('full_name'), 
+            email=request.form.get('email'), 
+            password=hashed_pw
+        )
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            return redirect(url_for('login'))
+        except:
+            flash("Email already exists")
     return render_template('signup.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -108,6 +149,7 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('index'))
+        flash("Invalid Credentials")
     return render_template('login.html')
 
 @app.route('/logout')
@@ -137,10 +179,17 @@ def admin_logout():
 def admin():
     if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
     if request.method == 'POST':
-        p = Product(name=request.form.get('name'), price=int(request.form.get('price')), image=request.form.get('image_url'), image_2=request.form.get('image_2_url'), description=request.form.get('description'))
+        p = Product(
+            name=request.form.get('name'), 
+            price=int(request.form.get('price')), 
+            image=request.form.get('image_url'), 
+            image_2=request.form.get('image_2_url'), 
+            description=request.form.get('description')
+        )
         db.session.add(p)
         db.session.commit()
         return redirect(url_for('admin'))
+    
     products = Product.query.all()
     orders = Order.query.order_by(Order.id.desc()).all()
     return render_template('admin.html', products=products, orders=orders)
@@ -158,30 +207,6 @@ def delete_product(id):
     db.session.delete(p)
     db.session.commit()
     return redirect(url_for('admin'))
-
-from flask import session
-
-@app.route('/add_to_cart/<int:product_id>')
-def add_to_cart(product_id):
-    # Initialize cart if it doesn't exist
-    if 'cart' not in session:
-        session['cart'] = []
-    
-    # Add product ID to the list
-    cart = session['cart']
-    cart.append(product_id)
-    session['cart'] = cart # Save session back
-    
-    return {"status": "success", "cart_count": len(session['cart'])}
-
-@app.route('/cart')
-def view_cart():
-    if 'cart' not in session or not session['cart']:
-        return "Your cart is empty!"
-    
-    # Fetch all products that are in the cart list
-    cart_items = Product.query.filter(Product.id.in_(session['cart'])).all()
-    return render_template('cart.html', items=cart_items)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
