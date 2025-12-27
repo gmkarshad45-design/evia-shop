@@ -159,5 +159,29 @@ def delete_product(id):
     db.session.commit()
     return redirect(url_for('admin'))
 
+from flask import session
+
+@app.route('/add_to_cart/<int:product_id>')
+def add_to_cart(product_id):
+    # Initialize cart if it doesn't exist
+    if 'cart' not in session:
+        session['cart'] = []
+    
+    # Add product ID to the list
+    cart = session['cart']
+    cart.append(product_id)
+    session['cart'] = cart # Save session back
+    
+    return {"status": "success", "cart_count": len(session['cart'])}
+
+@app.route('/cart')
+def view_cart():
+    if 'cart' not in session or not session['cart']:
+        return "Your cart is empty!"
+    
+    # Fetch all products that are in the cart list
+    cart_items = Product.query.filter(Product.id.in_(session['cart'])).all()
+    return render_template('cart.html', items=cart_items)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
