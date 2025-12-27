@@ -8,70 +8,28 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
-        /* 1. LAYOUT ENGINE */
-        html, body {
-            height: 100%;
-            margin: 0;
-        }
-        body { 
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden; 
-            background-color: #f8f9fa; 
-            font-family: 'Inter', sans-serif; 
-        }
-
-        .content-wrapper {
-            flex: 1 0 auto;
-        }
-
-        /* 2. NAVBAR STYLING */
+        html, body { height: 100%; margin: 0; }
+        body { display: flex; flex-direction: column; overflow-x: hidden; background-color: #f8f9fa; font-family: 'Inter', sans-serif; }
+        .content-wrapper { flex: 1 0 auto; }
         .navbar { padding: 8px 0; background-color: #212529 !important; }
         .navbar-brand { font-weight: 900; color: #fb641b !important; font-size: 1rem; margin-right: 10px; }
-
         .search-group { display: flex; flex-grow: 1; margin: 0 5px; max-width: 600px; }
         .search-input { height: 32px; font-size: 12px; border-radius: 4px 0 0 4px !important; border: 1px solid #444; background: #2b3035; color: white; }
         .search-btn { height: 32px; border-radius: 0 4px 4px 0 !important; background-color: #ff9f00; border: none; padding: 0 10px; color: white; }
-
         .cart-link { color: white !important; margin-right: 15px; text-decoration: none; display: flex; align-items: center; }
-
         @media (max-width: 991px) {
-            .navbar-collapse { 
-                background: #1a1a1a; 
-                position: absolute; 
-                top: 100%; left: 0; right: 0; 
-                padding: 15px; 
-                z-index: 1050; 
-                border-bottom: 2px solid #fb641b;
-            }
+            .navbar-collapse { background: #1a1a1a; position: absolute; top: 100%; left: 0; right: 0; padding: 15px; z-index: 1050; border-bottom: 2px solid #fb641b; }
         }
-
         .nav-link-menu { color: #fff !important; font-size: 13px; font-weight: 600; padding: 10px 0; text-transform: uppercase; border-bottom: 1px solid #333; }
         .btn-exit-menu { color: #ff4d4d !important; font-weight: 800; border: 1px solid #ff4d4d; border-radius: 4px; padding: 5px 15px; margin-top: 10px; display: inline-block; text-decoration: none; font-size: 12px; }
-
-        /* 3. PRODUCT CARDS */
-        .product-card { 
-            border-radius: 6px; background: #fff; border: none; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08); height: 100%; 
-            transition: transform 0.2s ease;
-        }
+        .product-card { border-radius: 6px; background: #fff; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.08); height: 100%; transition: transform 0.2s ease; }
         .product-card:hover { transform: translateY(-5px); }
         .img-container { height: 145px; background: #fff; display: flex; align-items: center; justify-content: center; padding: 5px; }
         .img-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
         .product-title { font-size: 0.75rem; font-weight: 700; color: #333; margin-bottom: 2px; }
-
-        /* 4. HERO SECTION */
         .hero-announcement { background-color: #111; color: #fff; border-radius: 8px; padding: 25px 10px; text-align: center; margin: 15px 0; border: 1px solid #333; }
         .hero-announcement h2 { font-weight: 800; font-size: 1.1rem; margin-bottom: 3px; }
-
-        /* 5. FOOTER STYLING */
-        .official-footer { 
-            flex-shrink: 0; 
-            background: #000 !important; 
-            padding: 25px 0; 
-            margin-top: 40px; 
-            width: 100%;
-        }
+        .official-footer { flex-shrink: 0; background: #000 !important; padding: 25px 0; margin-top: 40px; width: 100%; }
         .footer-icons a { color: #fff; font-size: 22px; margin: 0 15px; text-decoration: none; }
     </style>
 </head>
@@ -80,35 +38,28 @@
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
     <div class="container px-2">
         <a class="navbar-brand" href="/">EVIA</a>
-        
         <form class="search-group" action="/" method="GET">
             <input class="form-control search-input" type="search" name="q" placeholder="Search items...">
             <button class="search-btn" type="submit"><i class="fa fa-search"></i></button>
         </form>
-
         <a href="/cart" class="cart-link position-relative">
             <i class="fa fa-shopping-bag" style="font-size: 18px;"></i>
             <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9px; padding: 3px 5px;">
                 {{ session['cart']|length if session['cart'] else 0 }}
             </span>
         </a>
-
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
-
         <div class="collapse navbar-collapse" id="mainMenu">
             <div class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
                     <a class="nav-link nav-link-menu" href="/profile">My Orders</a>
-                    
                     {% if session.get('admin_verified') %}
                         <a class="nav-link nav-link-menu text-info" href="/admin">Admin Panel</a>
-                        <a class="nav-link nav-link-menu text-danger" href="{{ url_for('admin_logout') }}">Lock Admin</a>
                     {% else %}
                         <a class="nav-link nav-link-menu text-info" href="/admin_lock">Admin Panel</a>
                     {% endif %}
-
                     <div class="text-center">
                         <a class="btn-exit-menu" href="/logout">LOGOUT</a>
                     </div>
@@ -123,6 +74,17 @@
 
 <div class="content-wrapper">
     <div class="container">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-info alert-dismissible fade show mt-2" role="alert" style="font-size: 12px; padding: 8px;">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="padding: 10px;"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
         <div class="hero-announcement">
             <h2>SURPLUS TEES & PANTS</h2>
             <p style="font-size: 0.7rem; opacity: 0.6;">PREMIUM STOCK • LIMITED EDITION</p>
