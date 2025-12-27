@@ -1,212 +1,153 @@
-import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'evia_shop_secure_key_1321'
-
-# --- DATABASE CONFIGURATION ---
-database_url = os.getenv("DATABASE_URL")
-if database_url and database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///shop.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db = SQLAlchemy(app)
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'
-
-ADMIN_SECRET_PASS = "evia54321"
-
-# --- SQL MODELS ---
-class User(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    full_name = db.Column(db.String(150), nullable=False)
-    email = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(500), nullable=False)
-    orders = db.relationship('Order', backref='customer', lazy=True)
-
-class Product(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Integer, nullable=False)
-    image = db.Column(db.String(500)) 
-    image_2 = db.Column(db.String(500)) 
-    description = db.Column(db.Text)    
-    stock = db.Column(db.Integer, default=10)
-    category = db.Column(db.String(50))
-
-class Order(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    product_details = db.Column(db.Text) 
-    total_price = db.Column(db.Integer)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    status = db.Column(db.String(50), default="Placed")
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-with app.app_context():
-    db.create_all()
-
-# --- ROUTES ---
-
-@app.route('/')
-def index():
-    query = request.args.get('q')
-    products = Product.query.filter(Product.name.contains(query)).all() if query else Product.query.all()
-    return render_template('index.html', products=products)
-
-@app.route('/product/<int:id>')
-def product_detail(id):
-    product = Product.query.get_or_404(id)
-    return render_template('product_detail.html', product=product)
-
-@app.route('/add_to_cart/<int:product_id>')
-def add_to_cart(product_id):
-    if 'cart' not in session:
-        session['cart'] = []
-    
-    # Use a copy to ensure session detects change
-    temp_cart = list(session['cart'])
-    temp_cart.append(product_id)
-    session['cart'] = temp_cart
-    session.modified = True 
-    
-    return jsonify({"status": "success", "cart_count": len(session['cart'])})
-
-@app.route('/cart')
-def view_cart():
-    if 'cart' not in session or not session['cart']:
-        return render_template('cart.html', items=[], total=0)
-    
-    # We fetch products one by one to handle multiple quantities of same ID
-    cart_items = []
-    total_price = 0
-    for pid in session['cart']:
-        product = Product.query.get(pid)
-        if product:
-            cart_items.append(product)
-            total_price += product.price
-            
-    return render_template('cart.html', items=cart_items, total=total_price)
-
-@app.route('/buy/<int:id>')
-@login_required
-def buy_now(id):
-    session['checkout_item'] = id
-    return redirect(url_for('checkout'))
-
-@app.route('/checkout', methods=['GET', 'POST'])
-@login_required
-def checkout():
-    product_id = session.get('checkout_item')
-    if not product_id: return redirect(url_for('index'))
-    product = Product.query.get(product_id)
-    
-    if request.method == 'POST':
-        cust_name = request.form.get('full_name')
-        phone = request.form.get('phone')
-        addr = request.form.get('address')
-        dist = request.form.get('district')
-        pin = request.form.get('pincode')
-        state = request.form.get('state')
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ product.name }} | EVIA Official</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #ffffff; color: #111; padding-bottom: 90px; margin: 0; }
         
-        full_details = f"NAME: {cust_name} | WA: {phone} | ITEM: {product.name} | ADDR: {addr}, {dist}, {state} - {pin}"
-        new_order = Order(product_details=full_details, total_price=product.price, user_id=current_user.id)
-        db.session.add(new_order)
-        db.session.commit()
-        flash("Order Placed Successfully!")
-        return redirect(url_for('profile'))
+        .back-nav { 
+            padding: 12px 15px; border-bottom: 1px solid #eee; 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: #fff; position: sticky; top: 0; z-index: 1100;
+        }
+
+        /* Fixed Horizontal Scroller */
+        .scroll-container { position: relative; width: 100%; background: #fff; }
+        .scroll-wrapper {
+            display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+            scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
+        }
+        .scroll-wrapper::-webkit-scrollbar { display: none; }
+        .scroll-item {
+            flex: 0 0 100%; width: 100%; height: 380px;
+            scroll-snap-align: start; display: flex; align-items: center; justify-content: center;
+        }
+        .scroll-item img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        .scroll-dots { display: flex; justify-content: center; gap: 6px; padding: 10px 0; }
+        .dot { width: 6px; height: 6px; background: #e0e0e0; border-radius: 50%; transition: 0.3s; }
+        .dot.active { background: #000; width: 12px; border-radius: 10px; }
+
+        .price-section { font-size: 1.4rem; font-weight: 800; color: #000; margin-top: 5px; }
+        .pincode-box { background: #f8f8f8; border-radius: 12px; padding: 15px; border: 1px solid #eee; }
         
-    return render_template('checkout.html', product=product)
+        /* Fixed Action Bar for Mobile */
+        .bottom-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #fff; padding: 12px 15px;
+            border-top: 1px solid #eee; z-index: 2000;
+            display: flex; gap: 10px;
+        }
+        .cart-btn {
+            flex: 1; height: 50px; border-radius: 10px;
+            background: #fff; color: #000; border: 2px solid #000;
+            font-weight: 800; font-size: 13px;
+        }
+        .buy-btn-split {
+            flex: 1; height: 50px; border-radius: 10px;
+            background: #ff9f00; color: #fff; border: none;
+            font-weight: 800; font-size: 13px; text-decoration: none;
+            display: flex; align-items: center; justify-content: center;
+        }
 
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(
-            full_name=request.form.get('full_name'), 
-            email=request.form.get('email'), 
-            password=hashed_pw
-        )
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            return redirect(url_for('login'))
-        except:
-            flash("Email already exists")
-    return render_template('signup.html')
+        #cart-toast {
+            visibility: hidden; position: fixed; bottom: 100px; left: 50%;
+            transform: translateX(-50%); background: #333; color: #fff;
+            padding: 12px 25px; border-radius: 50px; z-index: 3000; font-size: 12px;
+        }
+        #cart-toast.show { visibility: visible; animation: fadeInUp 0.4s; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    </style>
+</head>
+<body>
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        user = User.query.filter_by(email=request.form.get('email')).first()
-        if user and check_password_hash(user.password, request.form.get('password')):
-            login_user(user)
-            return redirect(url_for('index'))
-        flash("Invalid Credentials")
-    return render_template('login.html')
+    <div class="back-nav">
+        <a href="/" class="text-dark"><i class="fa fa-arrow-left"></i></a>
+        <span style="font-weight: 800; font-size: 12px;">PRODUCT DETAILS</span>
+        <a href="/cart" class="text-dark position-relative">
+            <i class="fa fa-shopping-bag" style="font-size: 18px;"></i>
+            <span id="cart-count" class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle" style="font-size: 9px;">
+                {{ session['cart']|length if session['cart'] else 0 }}
+            </span>
+        </a>
+    </div>
 
-@app.route('/logout')
-def logout():
-    logout_user()
-    return redirect(url_for('index'))
+    <div class="scroll-container">
+        <div class="scroll-wrapper" id="imageScroller">
+            <div class="scroll-item"><img src="{{ product.image }}"></div>
+            {% if product.image_2 %}<div class="scroll-item"><img src="{{ product.image_2 }}"></div>{% endif %}
+        </div>
+        {% if product.image_2 %}
+        <div class="scroll-dots">
+            <div class="dot active"></div>
+            <div class="dot"></div>
+        </div>
+        {% endif %}
+    </div>
 
-@app.route('/profile')
-@login_required
-def profile():
-    user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
-    return render_template('profile.html', orders=user_orders)
+    <div class="container p-4">
+        <div style="font-size: 10px; color: #888; font-weight: 700;">PREMIUM SURPLUS</div>
+        <h1 style="font-weight: 800; font-size: 1.4rem;">{{ product.name }}</h1>
+        <div class="price-section">₹{{ product.price }}</div>
+        
+        <div class="pincode-box mt-3">
+            <div style="font-size: 10px; font-weight: 800; color: #666; margin-bottom: 8px;">CHECK DELIVERY</div>
+            <div class="d-flex gap-2">
+                <input type="number" id="pinInput" class="form-control" placeholder="Pincode" style="font-size: 14px;">
+                <button class="btn btn-dark btn-sm px-3" onclick="checkPin()">CHECK</button>
+            </div>
+            <div id="pinMsg" style="font-size: 11px; margin-top: 8px; font-weight: 600;"></div>
+        </div>
 
-@app.route('/admin_lock', methods=['GET', 'POST'])
-def admin_lock():
-    if request.method == 'POST' and request.form.get('admin_pass') == ADMIN_SECRET_PASS:
-        session['admin_verified'] = True
-        return redirect(url_for('admin'))
-    return render_template('admin_lock.html')
+        <div class="mt-4">
+            <h6 style="font-weight: 800; font-size: 12px;">DESCRIPTION</h6>
+            <p style="font-size: 13px; color: #555; line-height: 1.6;">{{ product.description }}</p>
+        </div>
+    </div>
 
-@app.route('/admin_logout')
-def admin_logout():
-    session.pop('admin_verified', None)
-    return redirect(url_for('index'))
+    <div id="cart-toast">✅ Added to Bag</div>
 
-@app.route('/admin', methods=['GET', 'POST'])
-def admin():
-    if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
-    if request.method == 'POST':
-        p = Product(
-            name=request.form.get('name'), 
-            price=int(request.form.get('price')), 
-            image=request.form.get('image_url'), 
-            image_2=request.form.get('image_2_url'), 
-            description=request.form.get('description')
-        )
-        db.session.add(p)
-        db.session.commit()
-        return redirect(url_for('admin'))
-    
-    products = Product.query.all()
-    orders = Order.query.order_by(Order.id.desc()).all()
-    return render_template('admin.html', products=products, orders=orders)
+    <div class="bottom-bar">
+        <button class="cart-btn" onclick="addToCart({{ product.id }})">ADD TO CART</button>
+        <a href="{{ url_for('buy_now', id=product.id) }}" class="buy-btn-split">BUY NOW</a>
+    </div>
 
-@app.route('/admin/update_status/<int:id>/<string:new_status>')
-def update_order_status(id, new_status):
-    order = Order.query.get_or_404(id)
-    order.status = new_status
-    db.session.commit()
-    return redirect(url_for('admin'))
+    <script>
+        function addToCart(pid) {
+            fetch('/add_to_cart/' + pid)
+                .then(res => res.json())
+                .then(data => {
+                    if(data.status === 'success') {
+                        document.getElementById('cart-count').innerText = data.cart_count;
+                        const toast = document.getElementById('cart-toast');
+                        toast.classList.add('show');
+                        setTimeout(() => toast.classList.remove('show'), 2000);
+                    }
+                });
+        }
 
-@app.route('/delete/<int:id>')
-def delete_product(id):
-    p = Product.query.get_or_404(id)
-    db.session.delete(p)
-    db.session.commit()
-    return redirect(url_for('admin'))
+        const scroller = document.getElementById('imageScroller');
+        const dots = document.querySelectorAll('.dot');
+        scroller.addEventListener('scroll', () => {
+            const index = Math.round(scroller.scrollLeft / scroller.clientWidth);
+            dots.forEach((d, i) => d.classList.toggle('active', i === index));
+        });
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
+        function checkPin() {
+            const pin = document.getElementById('pinInput').value;
+            const msg = document.getElementById('pinMsg');
+            if(pin.length === 6) {
+                msg.innerText = "✅ Serviceable: Delivery in 5 days";
+                msg.style.color = "green";
+            } else {
+                msg.innerText = "❌ Invalid Pincode";
+                msg.style.color = "red";
+            }
+        }
+    </script>
+</body>
+</html>
