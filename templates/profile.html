@@ -1,205 +1,154 @@
-import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Account | E-Shop</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #f1f3f6; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        
+        .sidebar-mobile { background: #1a252f; padding: 10px 0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .sidebar-nav { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 0 15px; -webkit-overflow-scrolling: touch; }
+        .sidebar-nav::-webkit-scrollbar { display: none; }
+        .sidebar-nav a { color: #bdc3c7; text-decoration: none; white-space: nowrap; padding: 8px 15px; margin-right: 10px; border-radius: 8px; font-size: 13px; border: 1px solid #34495e; flex: 0 0 auto; }
+        .sidebar-nav a.active { background: #3498db; color: white; border-color: #3498db; }
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'evia_shop_secure_key_1321'
+        .order-card { background: white; border-radius: 12px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 15px; padding: 15px; }
+        .status-dot { height: 8px; width: 8px; background-color: #26a541; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        
+        /* --- TRACKER STYLING --- */
+        .track-container { display: flex; justify-content: space-between; position: relative; margin: 25px 0 15px 0; }
+        .track-line { position: absolute; top: 12px; left: 5%; width: 90%; height: 2px; background: #e0e0e0; z-index: 1; }
+        .track-step { position: relative; z-index: 2; text-align: center; width: 25%; }
+        .track-icon { width: 25px; height: 25px; background: #fff; border: 2px solid #e0e0e0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 5px auto; font-size: 12px; color: #ccc; transition: 0.3s; }
+        .track-text { font-size: 9px; font-weight: bold; color: #999; text-transform: uppercase; }
+        
+        .track-step.active .track-icon { background: #26a541; border-color: #26a541; color: white; box-shadow: 0 0 8px rgba(38, 165, 65, 0.4); }
+        .track-step.active .track-text { color: #26a541; }
+        
+        @media (min-width: 768px) {
+            .sidebar-mobile { display: none; }
+            .desktop-sidebar { position: sticky; top: 20px; }
+            .track-text { font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
 
-# --- DATABASE ---
-database_url = os.getenv("DATABASE_URL")
-if database_url and database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
+<div class="sidebar-mobile">
+    <div class="sidebar-nav">
+        <a href="/" class="text-warning"><i class="fa fa-home"></i> Home</a>
+        <a href="/profile" class="active"><i class="fa fa-shopping-bag"></i> My Orders</a>
+        <a href="/logout" class="text-danger"><i class="fa fa-sign-out-alt"></i> Logout</a>
+    </div>
+</div>
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///shop.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+<div class="container mt-md-4 main-content">
+    <div class="row">
+        <div class="col-md-3 desktop-sidebar">
+            <div class="list-group shadow-sm border-0">
+                <div class="list-group-item bg-dark text-white fw-bold py-3">
+                    <i class="fa fa-user-circle me-2"></i> {{ current_user.full_name }}
+                </div>
+                <a href="/profile" class="list-group-item list-group-item-action active">My Orders</a>
+                <a href="/" class="list-group-item list-group-item-action">Continue Shopping</a>
+                <a href="/logout" class="list-group-item list-group-item-action text-danger">Logout</a>
+            </div>
+        </div>
 
-db = SQLAlchemy(app)
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'
+        <div class="col-md-9">
+            <div class="d-flex justify-content-between align-items-center mb-3 px-2 px-md-0">
+                <h4 class="fw-bold m-0">My Orders</h4>
+                <span class="badge bg-white text-dark border">{{ orders|length }} Orders</span>
+            </div>
 
-ADMIN_SECRET_PASS = "evia54321"
+            {% if orders %}
+                {% for order in orders %}
+                <div class="order-card mx-2 mx-md-0">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                        <span class="text-muted small fw-bold">#ORD-{{ order.id }}</span>
+                        <div>
+                            {% if order.status == "Cancelled" %}
+                                <span class="small fw-bold text-danger"><i class="fa fa-times-circle"></i> Cancelled</span>
+                            {% elif order.status == "Return Requested" %}
+                                <span class="small fw-bold text-warning">Return Pending</span>
+                            {% else %}
+                                <span class="status-dot"></span>
+                                <span class="small fw-bold text-success">{{ order.status }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
 
-# --- MODELS ---
-class User(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    full_name = db.Column(db.String(150), nullable=False)
-    email = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(500), nullable=False)
-    orders = db.relationship('Order', backref='customer', lazy=True)
+                    {% if order.status != "Cancelled" %}
+                    <div class="track-container">
+                        <div class="track-line"></div>
+                        <div class="track-step {% if order.status in ['Placed', 'Shipped', 'Out for Delivery', 'Delivered'] %}active{% endif %}">
+                            <div class="track-icon"><i class="fa fa-check"></i></div>
+                            <div class="track-text">Placed</div>
+                        </div>
+                        <div class="track-step {% if order.status in ['Shipped', 'Out for Delivery', 'Delivered'] %}active{% endif %}">
+                            <div class="track-icon"><i class="fa fa-truck"></i></div>
+                            <div class="track-text">Shipped</div>
+                        </div>
+                        <div class="track-step {% if order.status in ['Out for Delivery', 'Delivered'] %}active{% endif %}">
+                            <div class="track-icon"><i class="fa fa-motorcycle"></i></div>
+                            <div class="track-text">Out for Delivery</div>
+                        </div>
+                        <div class="track-step {% if order.status == 'Delivered' %}active{% endif %}">
+                            <div class="track-icon"><i class="fa fa-home"></i></div>
+                            <div class="track-text">Delivered</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="py-3 text-center">
+                        <p class="text-danger small fw-bold mb-0">This order was cancelled.</p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3 mt-4">
+                        <p class="small text-dark mb-1 fw-bold">Items Details:</p>
+                        <p class="text-muted small mb-0" style="line-height: 1.4;">{{ order.product_details }}</p>
+                    </div>
 
-class Product(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Integer, nullable=False)
-    image = db.Column(db.String(500)) 
-    image_2 = db.Column(db.String(500)) 
-    description = db.Column(db.Text)    
-    stock = db.Column(db.Integer, default=10)
-    category = db.Column(db.String(50))
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                        <div>
+                            <p class="mb-0 text-muted small">Total Paid</p>
+                            <h5 class="fw-bold text-primary mb-0">₹{{ order.total_price }}</h5>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            {% if order.status == "Placed" %}
+                                <a href="{{ url_for('cancel_order', id=order.id) }}" 
+                                   class="btn btn-sm btn-outline-danger fw-bold" 
+                                   onclick="return confirm('Cancel this order?')">CANCEL</a>
+                            {% endif %}
 
-class Order(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    product_details = db.Column(db.Text) 
-    total_price = db.Column(db.Integer)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    status = db.Column(db.String(50), default="Placed")
+                            {% if order.status == "Delivered" %}
+                                <a href="{{ url_for('return_order', id=order.id) }}" 
+                                   class="btn btn-sm btn-outline-secondary fw-bold">RETURN</a>
+                            {% endif %}
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+                            <a href="https://wa.me/91XXXXXXXXXX?text=Help with Order #{{ order.id }}" 
+                               class="btn btn-sm btn-success fw-bold">
+                               <i class="fab fa-whatsapp"></i> HELP
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="bg-white p-5 text-center rounded border mx-2 mx-md-0">
+                    <i class="fa fa-box-open fa-3x text-muted mb-3"></i>
+                    <h5 class="fw-bold">No orders yet!</h5>
+                    <a href="/" class="btn btn-primary mt-2">Start Shopping</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 
-with app.app_context():
-    db.create_all()
-
-# --- SHOPPING ROUTES ---
-
-@app.route('/')
-def index():
-    query = request.args.get('q')
-    products = Product.query.filter(Product.name.contains(query)).all() if query else Product.query.all()
-    return render_template('index.html', products=products)
-
-@app.route('/cart')
-def view_cart():
-    cart_ids = session.get('cart', [])
-    items = [Product.query.get(pid) for pid in cart_ids if Product.query.get(pid)]
-    total = sum(item.price for item in items)
-    return render_template('cart.html', items=items, total=total)
-
-@app.route('/add_to_cart/<int:id>')
-def add_to_cart(id):
-    if 'cart' not in session: session['cart'] = []
-    cart = list(session['cart'])
-    cart.append(id)
-    session['cart'] = cart
-    session.modified = True
-    return redirect(url_for('view_cart'))
-
-@app.route('/remove_from_cart/<int:id>')
-def remove_from_cart(id):
-    if 'cart' in session:
-        cart = list(session['cart'])
-        if id in cart:
-            cart.remove(id)
-            session['cart'] = cart
-            session.modified = True
-    return redirect(url_for('view_cart'))
-
-# --- CHECKOUT & ORDER ROUTES ---
-
-@app.route('/checkout_cart')
-@login_required
-def checkout_cart():
-    session['checkout_mode'] = 'cart'
-    return redirect(url_for('checkout'))
-
-@app.route('/buy/<int:id>')
-@login_required
-def buy_now(id):
-    session['checkout_mode'] = 'single'
-    session['single_id'] = id
-    return redirect(url_for('checkout'))
-
-@app.route('/checkout', methods=['GET', 'POST'])
-@login_required
-def checkout():
-    items = []
-    if session.get('checkout_mode') == 'cart':
-        items = [Product.query.get(pid) for pid in session.get('cart', []) if Product.query.get(pid)]
-    else:
-        p = Product.query.get(session.get('single_id'))
-        if p: items = [p]
-
-    if not items: return redirect(url_for('index'))
-    total = sum(i.price for i in items)
-
-    if request.method == 'POST':
-        addr = f"{request.form.get('address')}, {request.form.get('pincode')}"
-        item_names = ", ".join([i.name for i in items])
-        
-        new_order = Order(
-            product_details=f"Items: {item_names} | Address: {addr} | Phone: {request.form.get('phone')}",
-            total_price=total,
-            user_id=current_user.id
-        )
-        db.session.add(new_order)
-        db.session.commit()
-        
-        if session.get('checkout_mode') == 'cart': session.pop('cart', None)
-        flash("Order Confirmed!")
-        return redirect(url_for('profile'))
-
-    return render_template('checkout.html', product=items[0], total=total, items=items)
-
-@app.route('/cancel_order/<int:id>')
-@login_required
-def cancel_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id and order.status == "Placed":
-        order.status = "Cancelled"
-        db.session.commit()
-        flash("Order Cancelled")
-    return redirect(url_for('profile'))
-
-@app.route('/return_order/<int:id>')
-@login_required
-def return_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id and order.status == "Delivered":
-        order.status = "Return Requested"
-        db.session.commit()
-        flash("Return Requested")
-    return redirect(url_for('profile'))
-
-@app.route('/profile')
-@login_required
-def profile():
-    orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
-    return render_template('profile.html', orders=orders)
-
-# --- AUTH & ADMIN ---
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        user = User.query.filter_by(email=request.form.get('email')).first()
-        if user and check_password_hash(user.password, request.form.get('password')):
-            login_user(user)
-            return redirect(url_for('index'))
-    return render_template('login.html')
-
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=pw)
-        db.session.add(new_user)
-        db.session.commit()
-        return redirect(url_for('login'))
-    return render_template('signup.html')
-
-@app.route('/logout')
-def logout():
-    logout_user()
-    return redirect(url_for('index'))
-
-@app.route('/admin_lock', methods=['GET', 'POST'])
-def admin_lock():
-    if request.method == 'POST' and request.form.get('admin_pass') == ADMIN_SECRET_PASS:
-        session['admin_verified'] = True
-        return redirect(url_for('admin'))
-    return render_template('admin_lock.html')
-
-@app.route('/admin', methods=['GET', 'POST'])
-def admin():
-    if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
-    if request.method == 'POST':
-        p = Product(name=request.form.get('name'), price=int(request.form.get('price')), image=request.form.get('image_url'))
-        db.session.add(p)
-        db.session.commit()
-    return render_template('admin.html', products=Product.query.all(), orders=Order.query.all())
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
