@@ -53,7 +53,7 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
-# --- ROUTES ---
+# --- SHOPPING ROUTES ---
 
 @app.route('/')
 def index():
@@ -70,20 +70,28 @@ def product_detail(id):
 def add_to_cart(id):
     if 'cart' not in session:
         session['cart'] = []
-    
     temp_cart = list(session['cart'])
     temp_cart.append(id)
     session['cart'] = temp_cart
     session.modified = True 
-    
-    flash("Added to cart!")
+    flash("Added to bag")
     return redirect(request.referrer or url_for('index'))
+
+@app.route('/remove_from_cart/<int:id>')
+def remove_from_cart(id):
+    if 'cart' in session:
+        temp_cart = list(session['cart'])
+        if id in temp_cart:
+            temp_cart.remove(id)
+            session['cart'] = temp_cart
+            session.modified = True
+            flash("Item removed")
+    return redirect(url_for('view_cart'))
 
 @app.route('/cart')
 def view_cart():
     if 'cart' not in session or not session['cart']:
         return render_template('cart.html', items=[], total=0)
-    
     cart_items = []
     total_price = 0
     for pid in session['cart']:
@@ -91,60 +99,78 @@ def view_cart():
         if product:
             cart_items.append(product)
             total_price += product.price
-            
     return render_template('cart.html', items=cart_items, total=total_price)
+
+# --- CHECKOUT LOGIC ---
 
 @app.route('/buy/<int:id>')
 @login_required
 def buy_now(id):
+    session.pop('cart_checkout', None)
     session['checkout_item'] = id
     return redirect(url_for('checkout'))
 
-# FIXED CHECKOUT ROUTE
+@app.route('/checkout_cart')
+@login_required
+def checkout_cart():
+    if 'cart' not in session or not session['cart']:
+        flash("Bag is empty")
+        return redirect(url_for('index'))
+    session.pop('checkout_item', None)
+    session['cart_checkout'] = True
+    return redirect(url_for('checkout'))
+
 @app.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
-    product_id = session.get('checkout_item')
-    if not product_id: 
+    items_to_buy = []
+    total_price = 0
+    
+    if session.get('cart_checkout'):
+        for pid in session.get('cart', []):
+            p = Product.query.get(pid)
+            if p:
+                items_to_buy.append(p)
+                total_price += p.price
+    else:
+        pid = session.get('checkout_item')
+        p = Product.query.get(pid) if pid else None
+        if p:
+            items_to_buy.append(p)
+            total_price = p.price
+
+    if not items_to_buy:
         return redirect(url_for('index'))
-    
-    product = Product.query.get_or_404(product_id)
-    
+
     if request.method == 'POST':
         cust_name = request.form.get('full_name')
         phone = request.form.get('phone')
-        addr = request.form.get('address')
-        dist = request.form.get('district')
-        pin = request.form.get('pincode')
-        state = request.form.get('state')
-        
-        # Compile details for the admin order panel
-        full_details = f"NAME: {cust_name} | WA: {phone} | ITEM: {product.name} | ADDR: {addr}, {dist}, {state} - {pin}"
+        item_names = ", ".join([i.name for i in items_to_buy])
+        addr = f"{request.form.get('address')}, {request.form.get('district')}, {request.form.get('state')} - {request.form.get('pincode')}"
         
         new_order = Order(
-            product_details=full_details, 
-            total_price=product.price, 
+            product_details=f"NAME: {cust_name} | WA: {phone} | ITEMS: {item_names} | ADDR: {addr}",
+            total_price=total_price,
             user_id=current_user.id
         )
-        
         db.session.add(new_order)
         db.session.commit()
         
-        # Flash message triggers the success overlay in checkout.html
-        flash("Order placed successfully!")
+        session.pop('cart', None)
+        session.pop('checkout_item', None)
+        session.pop('cart_checkout', None)
+        flash("Order Placed Successfully")
         return redirect(url_for('checkout'))
-        
-    return render_template('checkout.html', product=product)
+
+    return render_template('checkout.html', product=items_to_buy[0], total=total_price, count=len(items_to_buy))
+
+# --- AUTH & ADMIN ---
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(
-            full_name=request.form.get('full_name'), 
-            email=request.form.get('email'), 
-            password=hashed_pw
-        )
+        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=hashed_pw)
         try:
             db.session.add(new_user)
             db.session.commit()
@@ -181,43 +207,12 @@ def admin_lock():
         return redirect(url_for('admin'))
     return render_template('admin_lock.html')
 
-@app.route('/admin_logout')
-def admin_logout():
-    session.pop('admin_verified', None)
-    return redirect(url_for('index'))
-
-@app.route('/admin', methods=['GET', 'POST'])
+@app.route('/admin')
 def admin():
     if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
-    if request.method == 'POST':
-        p = Product(
-            name=request.form.get('name'), 
-            price=int(request.form.get('price')), 
-            image=request.form.get('image_url'), 
-            image_2=request.form.get('image_2_url'), 
-            description=request.form.get('description')
-        )
-        db.session.add(p)
-        db.session.commit()
-        return redirect(url_for('admin'))
-    
     products = Product.query.all()
     orders = Order.query.order_by(Order.id.desc()).all()
     return render_template('admin.html', products=products, orders=orders)
-
-@app.route('/admin/update_status/<int:id>/<string:new_status>')
-def update_order_status(id, new_status):
-    order = Order.query.get_or_404(id)
-    order.status = new_status
-    db.session.commit()
-    return redirect(url_for('admin'))
-
-@app.route('/delete/<int:id>')
-def delete_product(id):
-    p = Product.query.get_or_404(id)
-    db.session.delete(p)
-    db.session.commit()
-    return redirect(url_for('admin'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
