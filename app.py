@@ -78,12 +78,39 @@ def add_to_cart(id):
     flash("Added to bag")
     return redirect(url_for('view_cart'))
 
+@app.route('/remove_from_cart/<int:id>')
+def remove_from_cart(id):
+    if 'cart' in session:
+        cart = list(session['cart'])
+        if id in cart:
+            cart.remove(id)
+            session['cart'] = cart
+            session.modified = True
+    return redirect(url_for('view_cart'))
+
+# --- CHECKOUT TRIGGERS ---
+
+@app.route('/buy_now/<int:id>')
+@login_required
+def buy_now(id):
+    session['checkout_mode'] = 'single'
+    session['single_id'] = id
+    return redirect(url_for('checkout'))
+
+@app.route('/checkout_cart')
+@login_required
+def checkout_cart():
+    if not session.get('cart'):
+        flash("Your cart is empty")
+        return redirect(url_for('index'))
+    session['checkout_mode'] = 'cart'
+    return redirect(url_for('checkout'))
+
 # --- CHECKOUT & ORDER LOGIC ---
 
 @app.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
-    # Logic to get items based on session mode (cart or single)
     items = []
     if session.get('checkout_mode') == 'cart':
         items = [Product.query.get(pid) for pid in session.get('cart', []) if Product.query.get(pid)]
@@ -95,7 +122,6 @@ def checkout():
     total = sum(i.price for i in items)
 
     if request.method == 'POST':
-        cust_name = request.form.get('full_name')
         phone = request.form.get('phone')
         addr = f"{request.form.get('address')}, {request.form.get('district')}, {request.form.get('state')} - {request.form.get('pincode')}"
         item_names = ", ".join([i.name for i in items])
@@ -108,20 +134,17 @@ def checkout():
         db.session.add(new_order)
         db.session.commit()
         
-        # Clear cart if it was a cart checkout
         if session.get('checkout_mode') == 'cart': session.pop('cart', None)
-        
         flash("Order Placed Successfully")
         return redirect(url_for('profile'))
 
     return render_template('checkout.html', product=items[0], total=total, items=items, count=len(items))
 
-# --- PROFILE & ORDER ACTIONS (The missing fixes) ---
+# --- PROFILE & ORDER ACTIONS ---
 
 @app.route('/profile')
 @login_required
 def profile():
-    # Fetch all orders for the current user
     orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
     return render_template('profile.html', orders=orders)
 
@@ -129,7 +152,6 @@ def profile():
 @login_required
 def cancel_order(id):
     order = Order.query.get_or_404(id)
-    # Security: Ensure the user only cancels their own order
     if order.user_id == current_user.id and order.status == "Placed":
         order.status = "Cancelled"
         db.session.commit()
@@ -158,6 +180,21 @@ def login():
         flash("Invalid Credentials")
     return render_template('login.html')
 
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
+        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=pw)
+        db.session.add(new_user)
+        db.session.commit()
+        return redirect(url_for('login'))
+    return render_template('signup.html')
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
 @app.route('/admin_lock', methods=['GET', 'POST'])
 def admin_lock():
     if request.method == 'POST' and request.form.get('admin_pass') == ADMIN_SECRET_PASS:
@@ -168,7 +205,15 @@ def admin_lock():
 @app.route('/admin')
 def admin():
     if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
-    return render_template('admin.html', products=Product.query.all(), orders=Order.query.all())
+    return render_template('admin.html', products=Product.query.all(), orders=Order.query.order_by(Order.id.desc()).all())
+
+@app.route('/admin/update_status/<int:id>/<string:new_status>')
+def update_order_status(id, new_status):
+    if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
+    order = Order.query.get_or_404(id)
+    order.status = new_status
+    db.session.commit()
+    return redirect(url_for('admin'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
