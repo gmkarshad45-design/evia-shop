@@ -66,25 +66,26 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-@app.route('/add_to_cart/<int:product_id>')
-def add_to_cart(product_id):
+# FIXED: Variable name changed to 'id' to match HTML url_for
+@app.route('/add_to_cart/<int:id>')
+def add_to_cart(id):
     if 'cart' not in session:
         session['cart'] = []
     
     # Use a copy to ensure session detects change
     temp_cart = list(session['cart'])
-    temp_cart.append(product_id)
+    temp_cart.append(id)
     session['cart'] = temp_cart
     session.modified = True 
     
-    return jsonify({"status": "success", "cart_count": len(session['cart'])})
+    flash("Added to cart!")
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/cart')
 def view_cart():
     if 'cart' not in session or not session['cart']:
         return render_template('cart.html', items=[], total=0)
     
-    # We fetch products one by one to handle multiple quantities of same ID
     cart_items = []
     total_price = 0
     for pid in session['cart']:
