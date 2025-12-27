@@ -14,7 +14,7 @@
         .card { border: none; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); border-radius: 10px; }
         .status-badge { font-size: 0.75rem; padding: 5px 10px; border-radius: 20px; }
         /* Style for the detail box in modal */
-        .detail-box { background: #f1f3f6; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; border-left: 4px solid #3498db; }
+        .detail-box { background: #f1f3f6; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; border-left: 4px solid #3498db; white-space: pre-wrap; }
     </style>
 </head>
 <body>
@@ -104,6 +104,9 @@
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                 </div>
                                                 <div class="modal-body">
+                                                    <p class="mb-1 text-muted small fw-bold text-uppercase">Customer Name</p>
+                                                    <h6 class="fw-bold mb-3 text-primary">{{ order.customer.full_name }}</h6>
+
                                                     <p class="mb-2 text-muted small fw-bold text-uppercase">Shipping & WhatsApp Details</p>
                                                     <div class="detail-box mb-3">
                                                         {{ order.product_details }}
