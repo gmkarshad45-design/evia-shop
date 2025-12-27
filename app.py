@@ -19,7 +19,6 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# Updated password as per your script
 ADMIN_SECRET_PASS = "evia54321"
 
 # --- SQL MODELS ---
@@ -35,7 +34,7 @@ class Product(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     image = db.Column(db.String(500)) 
-    image_2 = db.Column(db.String(500)) # Ensure this matches your template
+    image_2 = db.Column(db.String(500)) 
     description = db.Column(db.Text)    
     stock = db.Column(db.Integer, default=10)
     category = db.Column(db.String(50))
@@ -51,19 +50,13 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- DATABASE INITIALIZATION ---
 with app.app_context():
     db.create_all()
-    print("🟢 Database & Columns Initialized.")
 
-# --- MAIN ROUTES ---
 @app.route('/')
 def index():
     query = request.args.get('q')
-    if query:
-        products = Product.query.filter(Product.name.contains(query)).all()
-    else:
-        products = Product.query.all()
+    products = Product.query.filter(Product.name.contains(query)).all() if query else Product.query.all()
     return render_template('index.html', products=products)
 
 @app.route('/product/<int:id>')
@@ -81,45 +74,28 @@ def buy_now(id):
 @login_required
 def checkout():
     product_id = session.get('checkout_item')
-    if not product_id:
-        return redirect(url_for('index'))
-    
+    if not product_id: return redirect(url_for('index'))
     product = Product.query.get(product_id)
-    
     if request.method == 'POST':
+        cust_name = request.form.get('full_name')
         phone = request.form.get('phone')
         addr = request.form.get('address')
         dist = request.form.get('district')
         pin = request.form.get('pincode')
         state = request.form.get('state')
-
-        full_details = f"Product: {product.name} | WA: {phone} | Addr: {addr}, {dist}, {state} - {pin}"
-
-        new_order = Order(
-            product_details=full_details,
-            total_price=product.price,
-            user_id=current_user.id,
-            status="Placed"
-        )
+        # Combined details for admin
+        full_details = f"NAME: {cust_name} | WA: {phone} | ITEM: {product.name} | ADDR: {addr}, {dist}, {state} - {pin}"
+        new_order = Order(product_details=full_details, total_price=product.price, user_id=current_user.id)
         db.session.add(new_order)
         db.session.commit()
-        
         flash("Order Placed Successfully!")
         return redirect(url_for('profile'))
-        
     return render_template('checkout.html', product=product)
 
-# --- AUTH ROUTES ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        name = request.form.get('full_name')
-        email = request.form.get('email')
-        passwd = request.form.get('password')
-        if User.query.filter_by(email=email).first():
-            flash("Email already registered!")
-            return redirect(url_for('signup'))
-        new_user = User(full_name=name, email=email, password=generate_password_hash(passwd))
+        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=generate_password_hash(request.form.get('password')))
         db.session.add(new_user)
         db.session.commit()
         return redirect(url_for('login'))
@@ -132,7 +108,6 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('index'))
-        flash("Invalid Credentials")
     return render_template('login.html')
 
 @app.route('/logout')
@@ -140,42 +115,17 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- PROFILE & ORDER ACTIONS ---
 @app.route('/profile')
 @login_required
 def profile():
     user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
     return render_template('profile.html', orders=user_orders)
 
-@app.route('/cancel_order/<int:id>')
-@login_required
-def cancel_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id:
-        order.status = "Cancelled"
-        db.session.commit()
-        flash("Order Cancelled")
-    return redirect(url_for('profile'))
-
-@app.route('/return_order/<int:id>')
-@login_required
-def return_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id:
-        order.status = "Return Requested"
-        db.session.commit()
-        flash("Return Requested")
-    return redirect(url_for('profile'))
-
-# --- ADMIN ROUTES ---
 @app.route('/admin_lock', methods=['GET', 'POST'])
 def admin_lock():
-    if request.method == 'POST':
-        if request.form.get('admin_pass') == ADMIN_SECRET_PASS:
-            session['admin_verified'] = True
-            return redirect(url_for('admin'))
-        else:
-            flash("Incorrect Admin Password")
+    if request.method == 'POST' and request.form.get('admin_pass') == ADMIN_SECRET_PASS:
+        session['admin_verified'] = True
+        return redirect(url_for('admin'))
     return render_template('admin_lock.html')
 
 @app.route('/admin_logout')
@@ -185,43 +135,29 @@ def admin_logout():
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
-    if not session.get('admin_verified'):
-        return redirect(url_for('admin_lock'))
-    
+    if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
     if request.method == 'POST':
-        p = Product(
-            name=request.form.get('name'), 
-            price=int(request.form.get('price')), 
-            image=request.form.get('image_url'),
-            image_2=request.form.get('image_2_url'), 
-            description=request.form.get('description')
-        )
+        p = Product(name=request.form.get('name'), price=int(request.form.get('price')), image=request.form.get('image_url'), image_2=request.form.get('image_2_url'), description=request.form.get('description'))
         db.session.add(p)
         db.session.commit()
-        flash("Product added successfully!")
         return redirect(url_for('admin'))
-    
     products = Product.query.all()
     orders = Order.query.order_by(Order.id.desc()).all()
     return render_template('admin.html', products=products, orders=orders)
 
 @app.route('/admin/update_status/<int:id>/<string:new_status>')
 def update_order_status(id, new_status):
-    if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
     order = Order.query.get_or_404(id)
     order.status = new_status
     db.session.commit()
-    flash(f"Order #{id} updated to {new_status}")
     return redirect(url_for('admin'))
 
 @app.route('/delete/<int:id>')
 def delete_product(id):
-    if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
     p = Product.query.get_or_404(id)
     db.session.delete(p)
     db.session.commit()
     return redirect(url_for('admin'))
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
