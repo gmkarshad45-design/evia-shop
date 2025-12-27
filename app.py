@@ -53,7 +53,7 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
-# --- SHOPPING ROUTES ---
+# --- SHOPPING & CART ROUTES ---
 
 @app.route('/')
 def index():
@@ -160,11 +160,11 @@ def checkout():
         session.pop('checkout_item', None)
         session.pop('cart_checkout', None)
         flash("Order Placed Successfully")
-        return redirect(url_for('checkout'))
+        return redirect(url_for('profile'))
 
     return render_template('checkout.html', product=items_to_buy[0], total=total_price, count=len(items_to_buy))
 
-# --- AUTH & ADMIN ---
+# --- AUTHENTICATION ---
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -200,19 +200,64 @@ def profile():
     user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
     return render_template('profile.html', orders=user_orders)
 
+# --- ADMIN PANEL ---
+
 @app.route('/admin_lock', methods=['GET', 'POST'])
 def admin_lock():
-    if request.method == 'POST' and request.form.get('admin_pass') == ADMIN_SECRET_PASS:
-        session['admin_verified'] = True
-        return redirect(url_for('admin'))
+    if request.method == 'POST':
+        if request.form.get('admin_pass') == ADMIN_SECRET_PASS:
+            session['admin_verified'] = True
+            return redirect(url_for('admin'))
+        flash("Incorrect Password")
     return render_template('admin_lock.html')
 
-@app.route('/admin')
+@app.route('/admin', methods=['GET', 'POST'])
 def admin():
-    if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
+    if not session.get('admin_verified'): 
+        return redirect(url_for('admin_lock'))
+    
+    if request.method == 'POST':
+        try:
+            p = Product(
+                name=request.form.get('name'), 
+                price=int(request.form.get('price')), 
+                image=request.form.get('image_url'), 
+                image_2=request.form.get('image_2_url'), 
+                description=request.form.get('description'),
+                category=request.form.get('category'),
+                stock=int(request.form.get('stock', 10))
+            )
+            db.session.add(p)
+            db.session.commit()
+            flash("Product Added!")
+            return redirect(url_for('admin'))
+        except Exception as e:
+            flash(f"Error: {e}")
+    
     products = Product.query.all()
     orders = Order.query.order_by(Order.id.desc()).all()
     return render_template('admin.html', products=products, orders=orders)
+
+@app.route('/admin/update_status/<int:id>/<string:new_status>')
+def update_order_status(id, new_status):
+    if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
+    order = Order.query.get_or_404(id)
+    order.status = new_status
+    db.session.commit()
+    return redirect(url_for('admin'))
+
+@app.route('/admin/delete_product/<int:id>')
+def delete_product(id):
+    if not session.get('admin_verified'): return redirect(url_for('admin_lock'))
+    p = Product.query.get_or_404(id)
+    db.session.delete(p)
+    db.session.commit()
+    return redirect(url_for('admin'))
+
+@app.route('/admin_logout')
+def admin_logout():
+    session.pop('admin_verified', None)
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
