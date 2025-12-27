@@ -7,24 +7,19 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; color: #111; }
-        .checkout-container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
-        .back-nav { padding: 15px 0; display: flex; align-items: center; border-bottom: 1px solid #eee; margin-bottom: 20px; }
-        .back-nav a { color: #000; text-decoration: none; font-size: 14px; font-weight: 700; }
-        .checkout-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .form-label { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; margin-bottom: 5px; }
-        .form-control, .form-select { height: 45px; font-size: 14px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; }
-        .summary-box { background: #000; color: #fff; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
-        .summary-text { font-size: 12px; opacity: 0.8; }
-        .summary-price { font-size: 18px; font-weight: 900; }
+        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; color: #111; padding-bottom: 40px; }
+        .checkout-container { max-width: 500px; margin: auto; padding: 0 15px; }
+        .back-nav { padding: 15px 0; display: flex; align-items: center; }
+        .back-nav a { color: #000; text-decoration: none; font-size: 13px; font-weight: 700; }
+        .checkout-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; }
+        .form-label { font-size: 10px; font-weight: 800; color: #666; text-transform: uppercase; }
+        .form-control, .form-select { border-radius: 8px; font-size: 14px; background: #fafafa; margin-bottom: 12px; }
+        .summary-box { background: #000; color: #fff; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
+        .confirm-btn { background: #ff9f00; color: white; border: none; width: 100%; padding: 15px; font-weight: 800; border-radius: 8px; margin-top: 10px; }
+        
         #successOverlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 5000; text-align: center; padding-top: 100px;
-        }
-        .confirm-btn { 
-            background: #ff9f00; color: white; border: none; width: 100%; 
-            padding: 15px; font-size: 14px; font-weight: 800; border-radius: 8px; 
-            text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;
+            background: white; z-index: 9999; text-align: center; padding-top: 120px;
         }
     </style>
 </head>
@@ -32,723 +27,60 @@
 
 <div class="checkout-container">
     <div class="back-nav">
-        <a href="/"><i class="fa fa-chevron-left"></i> BACK TO SHOP</a>
+        <a href="/cart"><i class="fa fa-chevron-left me-2"></i> REVIEW BAG</a>
     </div>
 
-    {% if product %}
-    <div class="summary-box d-flex justify-content-between align-items-center">
-        <div>
-            <div class="summary-text">ITEM: {{ product.name }}</div>
-            <div class="summary-text">Payable Amount</div>
+    <div class="summary-box">
+        <div style="font-size: 11px; opacity: 0.7;">TOTAL PAYABLE</div>
+        <div class="d-flex justify-content-between align-items-center">
+            <h3 class="m-0 fw-bold">₹{{ total }}</h3>
+            <span class="badge bg-white text-dark">{{ items|length }} Item(s)</span>
         </div>
-        <div class="summary-price">₹{{ product.price }}</div>
     </div>
 
     <div class="checkout-card">
-        <h6 class="fw-bold mb-3" style="font-size: 14px;">DELIVERY ADDRESS</h6>
-        <form action="{{ url_for('checkout') }}" method="POST">
-            <div class="mb-3">
-                <label class="form-label">Full Name</label>
-                <input type="text" name="full_name" class="form-control" placeholder="Required" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">WhatsApp Number</label>
-                <input type="tel" name="phone" class="form-control" placeholder="91XXXXXXXX" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Address (House/Building)</label>
-                <input type="text" name="address" class="form-control" placeholder="Flat No, Street Name" required>
-            </div>
-            <div class="row">
-                <div class="col-6 mb-3">
+        <h6 class="fw-bold mb-3">SHIPPING DETAILS</h6>
+        <form method="POST">
+            <label class="form-label">Full Name</label>
+            <input type="text" name="full_name" class="form-control" placeholder="Receiver's name" required>
+
+            <label class="form-label">WhatsApp Number</label>
+            <input type="tel" name="phone" class="form-control" placeholder="For payment details" required>
+
+            <label class="form-label">Address</label>
+            <input type="text" name="address" class="form-control" placeholder="House/Flat No, Landmark" required>
+
+            <div class="row px-0">
+                <div class="col-6">
                     <label class="form-label">District</label>
                     <input type="text" name="district" class="form-control" required>
                 </div>
-                <div class="col-6 mb-3">
+                <div class="col-6">
                     <label class="form-label">Pincode</label>
                     <input type="number" name="pincode" class="form-control" required>
                 </div>
             </div>
-            <div class="mb-4">
-                <label class="form-label">State</label>
-                <select name="state" class="form-select" required>
-                    <option value="Maharashtra">Maharashtra</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Gujarat">Gujarat</option>
-                    <option value="Karnataka">Karnataka</option>
-                    <option value="Tamil Nadu">Tamil Nadu</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <button type="submit" class="confirm-btn">Confirm Order</button>
+
+            <label class="form-label">State</label>
+            <select name="state" class="form-select" required>
+                <option value="Maharashtra">Maharashtra</option>
+                <option value="Delhi">Delhi</option>
+                <option value="Karnataka">Karnataka</option>
+                <option value="Other">Other State</option>
+            </select>
+
+            <button type="submit" class="confirm-btn">PLACE ORDER (COD)</button>
         </form>
     </div>
-    {% else %}
-    <div class="text-center py-5">
-        <p>Your session expired or no item was selected.</p>
-        <a href="/" class="btn btn-dark">Return to Shop</a>
-    </div>
-    {% endif %}
 </div>
 
 {% with messages = get_flashed_messages() %}
-  {% if messages %}
+  {% if "ORDER_SUCCESS" in messages %}
     <div id="successOverlay" style="display: block;">
-        <div class="container">
-            <i class="fa fa-check-circle text-success" style="font-size: 60px;"></i>
-            <h2 class="fw-bold mt-4">ORDER PLACED!</h2>
-            <p class="text-muted">Payment information will be sent to your <br><strong>WhatsApp number</strong> shortly.</p>
-            <br>
-            <a href="/profile" class="btn btn-dark px-5 py-2 fw-bold" style="border-radius: 30px;">MY ORDERS</a>
-        </div>
-    </div>
-  {% endif %}
-{% endwith %}
-
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Checkout | EVIA Official</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; color: #111; }
-        .checkout-container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
-        .back-nav { padding: 15px 0; display: flex; align-items: center; border-bottom: 1px solid #eee; margin-bottom: 20px; }
-        .back-nav a { color: #000; text-decoration: none; font-size: 14px; font-weight: 700; }
-        .checkout-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .form-label { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; margin-bottom: 5px; }
-        .form-control, .form-select { height: 45px; font-size: 14px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; }
-        .summary-box { background: #000; color: #fff; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
-        .summary-text { font-size: 12px; opacity: 0.8; }
-        .summary-price { font-size: 18px; font-weight: 900; }
-        #successOverlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 5000; text-align: center; padding-top: 100px;
-        }
-        .confirm-btn { 
-            background: #ff9f00; color: white; border: none; width: 100%; 
-            padding: 15px; font-size: 14px; font-weight: 800; border-radius: 8px; 
-            text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="checkout-container">
-    <div class="back-nav">
-        <a href="/"><i class="fa fa-chevron-left"></i> BACK TO SHOP</a>
-    </div>
-
-    {% if product %}
-    <div class="summary-box d-flex justify-content-between align-items-center">
-        <div>
-            <div class="summary-text">ITEM: {{ product.name }}</div>
-            <div class="summary-text">Payable Amount</div>
-        </div>
-        <div class="summary-price">₹{{ product.price }}</div>
-    </div>
-
-    <div class="checkout-card">
-        <h6 class="fw-bold mb-3" style="font-size: 14px;">DELIVERY ADDRESS</h6>
-        <form action="{{ url_for('checkout') }}" method="POST">
-            <div class="mb-3">
-                <label class="form-label">Full Name</label>
-                <input type="text" name="full_name" class="form-control" placeholder="Required" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">WhatsApp Number</label>
-                <input type="tel" name="phone" class="form-control" placeholder="91XXXXXXXX" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Address (House/Building)</label>
-                <input type="text" name="address" class="form-control" placeholder="Flat No, Street Name" required>
-            </div>
-            <div class="row">
-                <div class="col-6 mb-3">
-                    <label class="form-label">District</label>
-                    <input type="text" name="district" class="form-control" required>
-                </div>
-                <div class="col-6 mb-3">
-                    <label class="form-label">Pincode</label>
-                    <input type="number" name="pincode" class="form-control" required>
-                </div>
-            </div>
-            <div class="mb-4">
-                <label class="form-label">State</label>
-                <select name="state" class="form-select" required>
-                    <option value="Maharashtra">Maharashtra</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Gujarat">Gujarat</option>
-                    <option value="Karnataka">Karnataka</option>
-                    <option value="Tamil Nadu">Tamil Nadu</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <button type="submit" class="confirm-btn">Confirm Order</button>
-        </form>
-    </div>
-    {% else %}
-    <div class="text-center py-5">
-        <p>Your session expired or no item was selected.</p>
-        <a href="/" class="btn btn-dark">Return to Shop</a>
-    </div>
-    {% endif %}
-</div>
-
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <div id="successOverlay" style="display: block;">
-        <div class="container">
-            <i class="fa fa-check-circle text-success" style="font-size: 60px;"></i>
-            <h2 class="fw-bold mt-4">ORDER PLACED!</h2>
-            <p class="text-muted">Payment information will be sent to your <br><strong>WhatsApp number</strong> shortly.</p>
-            <br>
-            <a href="/profile" class="btn btn-dark px-5 py-2 fw-bold" style="border-radius: 30px;">MY ORDERS</a>
-        </div>
-    </div>
-  {% endif %}
-{% endwith %}
-
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Checkout | EVIA Official</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; color: #111; }
-        .checkout-container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
-        .back-nav { padding: 15px 0; display: flex; align-items: center; border-bottom: 1px solid #eee; margin-bottom: 20px; }
-        .back-nav a { color: #000; text-decoration: none; font-size: 14px; font-weight: 700; }
-        .checkout-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .form-label { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; margin-bottom: 5px; }
-        .form-control, .form-select { height: 45px; font-size: 14px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; }
-        .summary-box { background: #000; color: #fff; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
-        .summary-text { font-size: 12px; opacity: 0.8; }
-        .summary-price { font-size: 18px; font-weight: 900; }
-        #successOverlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 5000; text-align: center; padding-top: 100px;
-        }
-        .confirm-btn { 
-            background: #ff9f00; color: white; border: none; width: 100%; 
-            padding: 15px; font-size: 14px; font-weight: 800; border-radius: 8px; 
-            text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="checkout-container">
-    <div class="back-nav">
-        <a href="/"><i class="fa fa-chevron-left"></i> BACK TO SHOP</a>
-    </div>
-
-    {% if product %}
-    <div class="summary-box d-flex justify-content-between align-items-center">
-        <div>
-            <div class="summary-text">ITEM: {{ product.name }}</div>
-            <div class="summary-text">Payable Amount</div>
-        </div>
-        <div class="summary-price">₹{{ product.price }}</div>
-    </div>
-
-    <div class="checkout-card">
-        <h6 class="fw-bold mb-3" style="font-size: 14px;">DELIVERY ADDRESS</h6>
-        <form action="{{ url_for('checkout') }}" method="POST">
-            <div class="mb-3">
-                <label class="form-label">Full Name</label>
-                <input type="text" name="full_name" class="form-control" placeholder="Required" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">WhatsApp Number</label>
-                <input type="tel" name="phone" class="form-control" placeholder="91XXXXXXXX" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Address (House/Building)</label>
-                <input type="text" name="address" class="form-control" placeholder="Flat No, Street Name" required>
-            </div>
-            <div class="row">
-                <div class="col-6 mb-3">
-                    <label class="form-label">District</label>
-                    <input type="text" name="district" class="form-control" required>
-                </div>
-                <div class="col-6 mb-3">
-                    <label class="form-label">Pincode</label>
-                    <input type="number" name="pincode" class="form-control" required>
-                </div>
-            </div>
-            <div class="mb-4">
-                <label class="form-label">State</label>
-                <select name="state" class="form-select" required>
-                    <option value="Maharashtra">Maharashtra</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Gujarat">Gujarat</option>
-                    <option value="Karnataka">Karnataka</option>
-                    <option value="Tamil Nadu">Tamil Nadu</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <button type="submit" class="confirm-btn">Confirm Order</button>
-        </form>
-    </div>
-    {% else %}
-    <div class="text-center py-5">
-        <p>Your session expired or no item was selected.</p>
-        <a href="/" class="btn btn-dark">Return to Shop</a>
-    </div>
-    {% endif %}
-</div>
-
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <div id="successOverlay" style="display: block;">
-        <div class="container">
-            <i class="fa fa-check-circle text-success" style="font-size: 60px;"></i>
-            <h2 class="fw-bold mt-4">ORDER PLACED!</h2>
-            <p class="text-muted">Payment information will be sent to your <br><strong>WhatsApp number</strong> shortly.</p>
-            <br>
-            <a href="/profile" class="btn btn-dark px-5 py-2 fw-bold" style="border-radius: 30px;">MY ORDERS</a>
-        </div>
-    </div>
-  {% endif %}
-{% endwith %}
-
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Checkout | EVIA Official</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; color: #111; }
-        .checkout-container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
-        .back-nav { padding: 15px 0; display: flex; align-items: center; border-bottom: 1px solid #eee; margin-bottom: 20px; }
-        .back-nav a { color: #000; text-decoration: none; font-size: 14px; font-weight: 700; }
-        .checkout-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .form-label { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; margin-bottom: 5px; }
-        .form-control, .form-select { height: 45px; font-size: 14px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; }
-        .summary-box { background: #000; color: #fff; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
-        .summary-text { font-size: 12px; opacity: 0.8; }
-        .summary-price { font-size: 18px; font-weight: 900; }
-        #successOverlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 5000; text-align: center; padding-top: 100px;
-        }
-        .confirm-btn { 
-            background: #ff9f00; color: white; border: none; width: 100%; 
-            padding: 15px; font-size: 14px; font-weight: 800; border-radius: 8px; 
-            text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="checkout-container">
-    <div class="back-nav">
-        <a href="/"><i class="fa fa-chevron-left"></i> BACK TO SHOP</a>
-    </div>
-
-    {% if product %}
-    <div class="summary-box d-flex justify-content-between align-items-center">
-        <div>
-            <div class="summary-text">ITEM: {{ product.name }}</div>
-            <div class="summary-text">Payable Amount</div>
-        </div>
-        <div class="summary-price">₹{{ product.price }}</div>
-    </div>
-
-    <div class="checkout-card">
-        <h6 class="fw-bold mb-3" style="font-size: 14px;">DELIVERY ADDRESS</h6>
-        <form action="{{ url_for('checkout') }}" method="POST">
-            <div class="mb-3">
-                <label class="form-label">Full Name</label>
-                <input type="text" name="full_name" class="form-control" placeholder="Required" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">WhatsApp Number</label>
-                <input type="tel" name="phone" class="form-control" placeholder="91XXXXXXXX" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Address (House/Building)</label>
-                <input type="text" name="address" class="form-control" placeholder="Flat No, Street Name" required>
-            </div>
-            <div class="row">
-                <div class="col-6 mb-3">
-                    <label class="form-label">District</label>
-                    <input type="text" name="district" class="form-control" required>
-                </div>
-                <div class="col-6 mb-3">
-                    <label class="form-label">Pincode</label>
-                    <input type="number" name="pincode" class="form-control" required>
-                </div>
-            </div>
-            <div class="mb-4">
-                <label class="form-label">State</label>
-                <select name="state" class="form-select" required>
-                    <option value="Maharashtra">Maharashtra</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Gujarat">Gujarat</option>
-                    <option value="Karnataka">Karnataka</option>
-                    <option value="Tamil Nadu">Tamil Nadu</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <button type="submit" class="confirm-btn">Confirm Order</button>
-        </form>
-    </div>
-    {% else %}
-    <div class="text-center py-5">
-        <p>Your session expired or no item was selected.</p>
-        <a href="/" class="btn btn-dark">Return to Shop</a>
-    </div>
-    {% endif %}
-</div>
-
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <div id="successOverlay" style="display: block;">
-        <div class="container">
-            <i class="fa fa-check-circle text-success" style="font-size: 60px;"></i>
-            <h2 class="fw-bold mt-4">ORDER PLACED!</h2>
-            <p class="text-muted">Payment information will be sent to your <br><strong>WhatsApp number</strong> shortly.</p>
-            <br>
-            <a href="/profile" class="btn btn-dark px-5 py-2 fw-bold" style="border-radius: 30px;">MY ORDERS</a>
-        </div>
-    </div>
-  {% endif %}
-{% endwith %}
-
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Checkout | EVIA Official</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; color: #111; }
-        .checkout-container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
-        .back-nav { padding: 15px 0; display: flex; align-items: center; border-bottom: 1px solid #eee; margin-bottom: 20px; }
-        .back-nav a { color: #000; text-decoration: none; font-size: 14px; font-weight: 700; }
-        .checkout-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .form-label { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; margin-bottom: 5px; }
-        .form-control, .form-select { height: 45px; font-size: 14px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; }
-        .summary-box { background: #000; color: #fff; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
-        .summary-text { font-size: 12px; opacity: 0.8; }
-        .summary-price { font-size: 18px; font-weight: 900; }
-        #successOverlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 5000; text-align: center; padding-top: 100px;
-        }
-        .confirm-btn { 
-            background: #ff9f00; color: white; border: none; width: 100%; 
-            padding: 15px; font-size: 14px; font-weight: 800; border-radius: 8px; 
-            text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="checkout-container">
-    <div class="back-nav">
-        <a href="/"><i class="fa fa-chevron-left"></i> BACK TO SHOP</a>
-    </div>
-
-    {% if product %}
-    <div class="summary-box d-flex justify-content-between align-items-center">
-        <div>
-            <div class="summary-text">ITEM: {{ product.name }}</div>
-            <div class="summary-text">Payable Amount</div>
-        </div>
-        <div class="summary-price">₹{{ product.price }}</div>
-    </div>
-
-    <div class="checkout-card">
-        <h6 class="fw-bold mb-3" style="font-size: 14px;">DELIVERY ADDRESS</h6>
-        <form action="{{ url_for('checkout') }}" method="POST">
-            <div class="mb-3">
-                <label class="form-label">Full Name</label>
-                <input type="text" name="full_name" class="form-control" placeholder="Required" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">WhatsApp Number</label>
-                <input type="tel" name="phone" class="form-control" placeholder="91XXXXXXXX" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Address (House/Building)</label>
-                <input type="text" name="address" class="form-control" placeholder="Flat No, Street Name" required>
-            </div>
-            <div class="row">
-                <div class="col-6 mb-3">
-                    <label class="form-label">District</label>
-                    <input type="text" name="district" class="form-control" required>
-                </div>
-                <div class="col-6 mb-3">
-                    <label class="form-label">Pincode</label>
-                    <input type="number" name="pincode" class="form-control" required>
-                </div>
-            </div>
-            <div class="mb-4">
-                <label class="form-label">State</label>
-                <select name="state" class="form-select" required>
-                    <option value="Maharashtra">Maharashtra</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Gujarat">Gujarat</option>
-                    <option value="Karnataka">Karnataka</option>
-                    <option value="Tamil Nadu">Tamil Nadu</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <button type="submit" class="confirm-btn">Confirm Order</button>
-        </form>
-    </div>
-    {% else %}
-    <div class="text-center py-5">
-        <p>Your session expired or no item was selected.</p>
-        <a href="/" class="btn btn-dark">Return to Shop</a>
-    </div>
-    {% endif %}
-</div>
-
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <div id="successOverlay" style="display: block;">
-        <div class="container">
-            <i class="fa fa-check-circle text-success" style="font-size: 60px;"></i>
-            <h2 class="fw-bold mt-4">ORDER PLACED!</h2>
-            <p class="text-muted">Payment information will be sent to your <br><strong>WhatsApp number</strong> shortly.</p>
-            <br>
-            <a href="/profile" class="btn btn-dark px-5 py-2 fw-bold" style="border-radius: 30px;">MY ORDERS</a>
-        </div>
-    </div>
-  {% endif %}
-{% endwith %}
-
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Checkout | EVIA Official</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; color: #111; }
-        .checkout-container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
-        .back-nav { padding: 15px 0; display: flex; align-items: center; border-bottom: 1px solid #eee; margin-bottom: 20px; }
-        .back-nav a { color: #000; text-decoration: none; font-size: 14px; font-weight: 700; }
-        .checkout-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .form-label { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; margin-bottom: 5px; }
-        .form-control, .form-select { height: 45px; font-size: 14px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; }
-        .summary-box { background: #000; color: #fff; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
-        .summary-text { font-size: 12px; opacity: 0.8; }
-        .summary-price { font-size: 18px; font-weight: 900; }
-        #successOverlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 5000; text-align: center; padding-top: 100px;
-        }
-        .confirm-btn { 
-            background: #ff9f00; color: white; border: none; width: 100%; 
-            padding: 15px; font-size: 14px; font-weight: 800; border-radius: 8px; 
-            text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="checkout-container">
-    <div class="back-nav">
-        <a href="/"><i class="fa fa-chevron-left"></i> BACK TO SHOP</a>
-    </div>
-
-    {% if product %}
-    <div class="summary-box d-flex justify-content-between align-items-center">
-        <div>
-            <div class="summary-text">ITEM: {{ product.name }}</div>
-            <div class="summary-text">Payable Amount</div>
-        </div>
-        <div class="summary-price">₹{{ product.price }}</div>
-    </div>
-
-    <div class="checkout-card">
-        <h6 class="fw-bold mb-3" style="font-size: 14px;">DELIVERY ADDRESS</h6>
-        <form action="{{ url_for('checkout') }}" method="POST">
-            <div class="mb-3">
-                <label class="form-label">Full Name</label>
-                <input type="text" name="full_name" class="form-control" placeholder="Required" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">WhatsApp Number</label>
-                <input type="tel" name="phone" class="form-control" placeholder="91XXXXXXXX" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Address (House/Building)</label>
-                <input type="text" name="address" class="form-control" placeholder="Flat No, Street Name" required>
-            </div>
-            <div class="row">
-                <div class="col-6 mb-3">
-                    <label class="form-label">District</label>
-                    <input type="text" name="district" class="form-control" required>
-                </div>
-                <div class="col-6 mb-3">
-                    <label class="form-label">Pincode</label>
-                    <input type="number" name="pincode" class="form-control" required>
-                </div>
-            </div>
-            <div class="mb-4">
-                <label class="form-label">State</label>
-                <select name="state" class="form-select" required>
-                    <option value="Maharashtra">Maharashtra</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Gujarat">Gujarat</option>
-                    <option value="Karnataka">Karnataka</option>
-                    <option value="Tamil Nadu">Tamil Nadu</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <button type="submit" class="confirm-btn">Confirm Order</button>
-        </form>
-    </div>
-    {% else %}
-    <div class="text-center py-5">
-        <p>Your session expired or no item was selected.</p>
-        <a href="/" class="btn btn-dark">Return to Shop</a>
-    </div>
-    {% endif %}
-</div>
-
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <div id="successOverlay" style="display: block;">
-        <div class="container">
-            <i class="fa fa-check-circle text-success" style="font-size: 60px;"></i>
-            <h2 class="fw-bold mt-4">ORDER PLACED!</h2>
-            <p class="text-muted">Payment information will be sent to your <br><strong>WhatsApp number</strong> shortly.</p>
-            <br>
-            <a href="/profile" class="btn btn-dark px-5 py-2 fw-bold" style="border-radius: 30px;">MY ORDERS</a>
-        </div>
-    </div>
-  {% endif %}
-{% endwith %}
-
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Checkout | EVIA Official</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; color: #111; }
-        .checkout-container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
-        .back-nav { padding: 15px 0; display: flex; align-items: center; border-bottom: 1px solid #eee; margin-bottom: 20px; }
-        .back-nav a { color: #000; text-decoration: none; font-size: 14px; font-weight: 700; }
-        .checkout-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .form-label { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; margin-bottom: 5px; }
-        .form-control, .form-select { height: 45px; font-size: 14px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; }
-        .summary-box { background: #000; color: #fff; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
-        .summary-text { font-size: 12px; opacity: 0.8; }
-        .summary-price { font-size: 18px; font-weight: 900; }
-        #successOverlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 5000; text-align: center; padding-top: 100px;
-        }
-        .confirm-btn { 
-            background: #ff9f00; color: white; border: none; width: 100%; 
-            padding: 15px; font-size: 14px; font-weight: 800; border-radius: 8px; 
-            text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="checkout-container">
-    <div class="back-nav">
-        <a href="/"><i class="fa fa-chevron-left"></i> BACK TO SHOP</a>
-    </div>
-
-    {% if product %}
-    <div class="summary-box d-flex justify-content-between align-items-center">
-        <div>
-            <div class="summary-text">ITEM: {{ product.name }}</div>
-            <div class="summary-text">Payable Amount</div>
-        </div>
-        <div class="summary-price">₹{{ product.price }}</div>
-    </div>
-
-    <div class="checkout-card">
-        <h6 class="fw-bold mb-3" style="font-size: 14px;">DELIVERY ADDRESS</h6>
-        <form action="{{ url_for('checkout') }}" method="POST">
-            <div class="mb-3">
-                <label class="form-label">Full Name</label>
-                <input type="text" name="full_name" class="form-control" placeholder="Required" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">WhatsApp Number</label>
-                <input type="tel" name="phone" class="form-control" placeholder="91XXXXXXXX" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Address (House/Building)</label>
-                <input type="text" name="address" class="form-control" placeholder="Flat No, Street Name" required>
-            </div>
-            <div class="row">
-                <div class="col-6 mb-3">
-                    <label class="form-label">District</label>
-                    <input type="text" name="district" class="form-control" required>
-                </div>
-                <div class="col-6 mb-3">
-                    <label class="form-label">Pincode</label>
-                    <input type="number" name="pincode" class="form-control" required>
-                </div>
-            </div>
-            <div class="mb-4">
-                <label class="form-label">State</label>
-                <select name="state" class="form-select" required>
-                    <option value="Maharashtra">Maharashtra</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Gujarat">Gujarat</option>
-                    <option value="Karnataka">Karnataka</option>
-                    <option value="Tamil Nadu">Tamil Nadu</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <button type="submit" class="confirm-btn">Confirm Order</button>
-        </form>
-    </div>
-    {% else %}
-    <div class="text-center py-5">
-        <p>Your session expired or no item was selected.</p>
-        <a href="/" class="btn btn-dark">Return to Shop</a>
-    </div>
-    {% endif %}
-</div>
-
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <div id="successOverlay" style="display: block;">
-        <div class="container">
-            <i class="fa fa-check-circle text-success" style="font-size: 60px;"></i>
-            <h2 class="fw-bold mt-4">ORDER PLACED!</h2>
-            <p class="text-muted">Payment information will be sent to your <br><strong>WhatsApp number</strong> shortly.</p>
-            <br>
-            <a href="/profile" class="btn btn-dark px-5 py-2 fw-bold" style="border-radius: 30px;">MY ORDERS</a>
-        </div>
+        <i class="fa fa-check-circle text-success" style="font-size: 80px;"></i>
+        <h2 class="fw-bold mt-4">ORDER PLACED!</h2>
+        <p class="text-muted px-4">Our team will contact you on WhatsApp for payment confirmation.</p>
+        <a href="/profile" class="btn btn-dark mt-4 px-5 py-2">VIEW MY ORDERS</a>
     </div>
   {% endif %}
 {% endwith %}
