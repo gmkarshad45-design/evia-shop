@@ -7,70 +7,99 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { font-family: 'Inter', sans-serif; background: #ffffff; color: #111; padding-bottom: 80px; }
+        body { font-family: 'Inter', sans-serif; background: #ffffff; color: #111; padding-bottom: 80px; margin: 0; }
         
-        /* Thin Back Nav */
-        .back-nav { padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; align-items: center; }
+        /* Navigation */
+        .back-nav { padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; align-items: center; background: #fff; }
 
-        /* PRODUCT IMAGE: Small & Sharp Fit */
-        .img-container-small {
+        /* --- FIXED HORIZONTAL SCROLL --- */
+        .scroll-container {
+            position: relative;
             width: 100%;
-            height: 280px; 
             background: #fff;
+        }
+
+        .scroll-wrapper {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Hide scrollbars */
+        .scroll-wrapper::-webkit-scrollbar { display: none; }
+        .scroll-wrapper { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .scroll-item {
+            flex: 0 0 100%;
+            width: 100%;
+            height: 350px;
+            scroll-snap-align: start;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 10px;
         }
-        
-        .img-container-secondary {
-            width: 100%;
-            height: 280px;
-            background: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px;
-            border-top: 1px solid #f5f5f5;
-        }
 
-        .img-container-small img, .img-container-secondary img {
+        .scroll-item img {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
         }
 
-        /* Official Text Styling */
-        .brand-tag { font-size: 9px; font-weight: 800; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-        .product-name { font-weight: 800; font-size: 1.2rem; margin-top: 2px; }
-        .price-section { font-size: 1.1rem; font-weight: 800; color: #000; }
-
-        /* Pincode Box */
-        .pincode-box {
-            background: #f9f9f9;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 12px;
-            margin-top: 15px;
+        /* Dots indicator */
+        .scroll-dots {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 0;
         }
-        .pin-input-group { display: flex; gap: 5px; margin-top: 5px; }
-        .pin-input { height: 35px; font-size: 12px; border-radius: 4px; border: 1px solid #ddd; padding: 0 10px; flex-grow: 1; }
-        .pin-btn { height: 35px; background: #000; color: #fff; border: none; border-radius: 4px; padding: 0 15px; font-size: 11px; font-weight: 700; }
+        .dot {
+            width: 6px;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .dot.active {
+            background: #000;
+            width: 12px;
+            border-radius: 10px;
+        }
+
+        /* Product Info */
+        .brand-tag { font-size: 10px; font-weight: 800; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+        .product-name { font-weight: 800; font-size: 1.3rem; margin: 5px 0; }
+        .price-section { font-size: 1.2rem; font-weight: 800; color: #000; margin-bottom: 20px; }
+
+        /* Delivery Box */
+        .pincode-box {
+            background: #f8f8f8;
+            border: 1px solid #efefef;
+            border-radius: 10px;
+            padding: 15px;
+        }
+        .pin-label { font-size: 10px; font-weight: 800; color: #666; margin-bottom: 8px; }
+        .pin-input-group { display: flex; gap: 8px; }
+        .pin-input { flex: 1; height: 38px; border: 1px solid #ddd; border-radius: 5px; padding: 0 12px; font-size: 13px; }
+        .pin-btn { background: #000; color: #fff; border: none; padding: 0 15px; border-radius: 5px; font-size: 11px; font-weight: 700; }
         
-        /* Action Bar */
+        /* Bottom Action Bar */
         .bottom-bar {
-            position: fixed; bottom: 0; width: 100%; background: #fff;
-            padding: 12px 15px; border-top: 1px solid #eee; z-index: 1000;
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #fff; padding: 12px 15px;
+            border-top: 1px solid #eee; z-index: 1000;
         }
         .buy-btn {
             background: #ff9f00; color: #fff; font-weight: 800; border: none;
-            width: 100%; height: 45px; border-radius: 6px; display: block;
-            text-align: center; line-height: 45px; text-decoration: none; font-size: 13px;
+            width: 100%; height: 48px; border-radius: 8px; display: block;
+            text-align: center; line-height: 48px; text-decoration: none; font-size: 14px;
         }
 
         @media (min-width: 768px) {
-            .img-container-small, .img-container-secondary { height: 400px; }
-            .content-pad { padding-left: 30px; }
+            .scroll-item { height: 500px; }
+            .content-pad { padding-left: 50px; }
         }
     </style>
 </head>
@@ -78,46 +107,54 @@
 
     <div class="back-nav">
         <a href="/" class="text-dark me-3"><i class="fa fa-arrow-left"></i></a>
-        <span style="font-size: 11px; font-weight: 700;">PRODUCT OVERVIEW</span>
+        <span style="font-size: 11px; font-weight: 800;">PRODUCT OVERVIEW</span>
     </div>
 
-    <div class="container mt-3">
+    <div class="container-fluid">
         <div class="row">
-            <div class="col-12 col-md-5">
-                <div class="img-container-small">
-                    <img src="{{ product.image }}" alt="{{ product.name }}">
+            <div class="col-12 col-md-6 p-0">
+                <div class="scroll-container">
+                    <div class="scroll-wrapper" id="imageScroller">
+                        <div class="scroll-item">
+                            <img src="{{ product.image }}" alt="{{ product.name }}">
+                        </div>
+                        {% if product.image_2 %}
+                        <div class="scroll-item">
+                            <img src="{{ product.image_2 }}" alt="{{ product.name }} View 2">
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if product.image_2 %}
+                    <div class="scroll-dots">
+                        <div class="dot active"></div>
+                        <div class="dot"></div>
+                    </div>
+                    {% endif %}
                 </div>
-
-                {% if product.image_2 %}
-                <div class="img-container-secondary mt-2">
-                    <img src="{{ product.image_2 }}" alt="{{ product.name }} alternate view">
-                </div>
-                {% endif %}
             </div>
 
-            <div class="col-12 col-md-7 content-pad">
-                <div class="mt-3 mt-md-0">
-                    <div class="brand-tag">Premium Surplus</div>
-                    <h1 class="product-name">{{ product.name }}</h1>
-                    <div class="price-section">₹{{ product.price }}</div>
+            <div class="col-12 col-md-6 p-4 content-pad">
+                <div class="brand-tag">Premium Surplus</div>
+                <h1 class="product-name">{{ product.name }}</h1>
+                <div class="price-section">₹{{ product.price }}</div>
 
-                    <div class="pincode-box">
-                        <div style="font-size: 10px; font-weight: 800; color: #555;">DELIVERY CHECK</div>
-                        <div class="pin-input-group">
-                            <input type="number" id="pinCode" class="pin-input" placeholder="Enter Pincode">
-                            <button class="pin-btn" onclick="checkDelivery()">CHECK</button>
-                        </div>
-                        <div id="deliveryMsg" style="font-size: 11px; margin-top: 8px; color: #666; font-weight: 600;">
-                            Estimated delivery: Within 7 Days
-                        </div>
+                <div class="pincode-box">
+                    <div class="pin-label">CHECK AVAILABILITY</div>
+                    <div class="pin-input-group">
+                        <input type="number" id="pinCode" class="pin-input" placeholder="Enter Pincode">
+                        <button class="pin-btn" onclick="checkDelivery()">CHECK</button>
                     </div>
+                    <div id="deliveryMsg" style="font-size: 11px; margin-top: 10px; font-weight: 600; color: #777;">
+                        Standard delivery: 5-7 Days
+                    </div>
+                </div>
 
-                    <div class="mt-4">
-                        <h6 style="font-size: 11px; font-weight: 800;">DESCRIPTION</h6>
-                        <p style="font-size: 12px; color: #666; line-height: 1.5;">
-                            {{ product.description or 'Authentic premium surplus. Best quality guaranteed.' }}
-                        </p>
-                    </div>
+                <div class="mt-4">
+                    <h6 style="font-size: 11px; font-weight: 800; color: #111;">PRODUCT DESCRIPTION</h6>
+                    <p style="font-size: 13px; color: #666; line-height: 1.6; margin-top: 10px;">
+                        {{ product.description or 'High-quality premium surplus item. Limited stock available. Guaranteed durability and comfort for daily use.' }}
+                    </p>
                 </div>
             </div>
         </div>
@@ -128,16 +165,30 @@
     </div>
 
     <script>
+        // Pincode Logic
         function checkDelivery() {
             const pin = document.getElementById('pinCode').value;
             const msg = document.getElementById('deliveryMsg');
             if(pin.length === 6) {
-                msg.innerHTML = "✅ Arriving in 7 Days (Expected)";
-                msg.style.color = "green";
+                msg.innerHTML = "✅ Serviceable: Delivery in 7 Days";
+                msg.style.color = "#28a745";
             } else {
-                msg.innerHTML = "❌ Please enter a valid 6-digit Pincode";
-                msg.style.color = "red";
+                msg.innerHTML = "❌ Invalid Pincode";
+                msg.style.color = "#dc3545";
             }
+        }
+
+        // Dot Movement Logic
+        const scroller = document.getElementById('imageScroller');
+        const dots = document.querySelectorAll('.dot');
+
+        if (scroller && dots.length > 0) {
+            scroller.addEventListener('scroll', () => {
+                const index = Math.round(scroller.scrollLeft / scroller.offsetWidth);
+                dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+            });
         }
     </script>
 </body>
