@@ -148,6 +148,15 @@
     </div>
 </div>
 
+    <div class="d-flex align-items: center;">
+    <a href="/cart" class="text-dark position-relative">
+        <i class="fa fa-shopping-bag" style="font-size: 20px;"></i>
+        <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 10px;">
+            {{ session['cart']|length if session['cart'] else 0 }}
+        </span>
+    </a>
+</div>
+
 <footer class="official-footer text-center">
     <div class="footer-icons">
         <a href="#"><i class="fab fa-instagram"></i></a>
