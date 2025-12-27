@@ -66,13 +66,11 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# FIXED: Variable name changed to 'id' to match HTML url_for
 @app.route('/add_to_cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session:
         session['cart'] = []
     
-    # Use a copy to ensure session detects change
     temp_cart = list(session['cart'])
     temp_cart.append(id)
     session['cart'] = temp_cart
@@ -102,12 +100,15 @@ def buy_now(id):
     session['checkout_item'] = id
     return redirect(url_for('checkout'))
 
+# FIXED CHECKOUT ROUTE
 @app.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
     product_id = session.get('checkout_item')
-    if not product_id: return redirect(url_for('index'))
-    product = Product.query.get(product_id)
+    if not product_id: 
+        return redirect(url_for('index'))
+    
+    product = Product.query.get_or_404(product_id)
     
     if request.method == 'POST':
         cust_name = request.form.get('full_name')
@@ -117,12 +118,21 @@ def checkout():
         pin = request.form.get('pincode')
         state = request.form.get('state')
         
+        # Compile details for the admin order panel
         full_details = f"NAME: {cust_name} | WA: {phone} | ITEM: {product.name} | ADDR: {addr}, {dist}, {state} - {pin}"
-        new_order = Order(product_details=full_details, total_price=product.price, user_id=current_user.id)
+        
+        new_order = Order(
+            product_details=full_details, 
+            total_price=product.price, 
+            user_id=current_user.id
+        )
+        
         db.session.add(new_order)
         db.session.commit()
-        flash("Order Placed Successfully!")
-        return redirect(url_for('profile'))
+        
+        # Flash message triggers the success overlay in checkout.html
+        flash("Order placed successfully!")
+        return redirect(url_for('checkout'))
         
     return render_template('checkout.html', product=product)
 
