@@ -33,6 +33,8 @@
         .search-input { height: 32px; font-size: 12px; border-radius: 4px 0 0 4px !important; border: 1px solid #444; background: #2b3035; color: white; }
         .search-btn { height: 32px; border-radius: 0 4px 4px 0 !important; background-color: #ff9f00; border: none; padding: 0 10px; color: white; }
 
+        .cart-link { color: white !important; margin-right: 15px; text-decoration: none; display: flex; align-items: center; }
+
         @media (max-width: 991px) {
             .navbar-collapse { 
                 background: #1a1a1a; 
@@ -83,6 +85,13 @@
             <input class="form-control search-input" type="search" name="q" placeholder="Search items...">
             <button class="search-btn" type="submit"><i class="fa fa-search"></i></button>
         </form>
+
+        <a href="/cart" class="cart-link position-relative">
+            <i class="fa fa-shopping-bag" style="font-size: 18px;"></i>
+            <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9px; padding: 3px 5px;">
+                {{ session['cart']|length if session['cart'] else 0 }}
+            </span>
+        </a>
 
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
             <span class="navbar-toggler-icon"></span>
@@ -146,15 +155,6 @@
             {% endif %}
         </div>
     </div>
-</div>
-
-    <div class="d-flex align-items: center;">
-    <a href="/cart" class="text-dark position-relative">
-        <i class="fa fa-shopping-bag" style="font-size: 20px;"></i>
-        <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 10px;">
-            {{ session['cart']|length if session['cart'] else 0 }}
-        </span>
-    </a>
 </div>
 
 <footer class="official-footer text-center">
