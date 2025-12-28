@@ -8,10 +8,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_pro_ultra_2025')
 
-# --- DATABASE SETUP (FIXED FOR POSTGRESQL) ---
+# --- DATABASE SETUP ---
 database_url = os.environ.get("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
-    # Render provides postgres://, but SQLAlchemy 1.4+ requires postgresql://
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///evia_db.db'
@@ -49,19 +48,51 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- ROUTES ---
+# Initialize database
+with app.app_context():
+    db.create_all()
+
+# --- MAIN SHOP ROUTES ---
 
 @app.route('/')
 def index():
     products = Product.query.all()
     return render_template('index.html', products=products)
 
-# FIX: Added the Cart route to stop 'url_build_error' crashing your HTML links
+@app.route('/product/<int:id>')
+def product_detail(id):
+    """ FIX: Added to resolve BuildError for 'product_detail' """
+    product = Product.query.get_or_404(id)
+    return render_template('product_detail.html', product=product)
+
+@app.route('/add_to_cart/<int:id>')
+def add_to_cart(id):
+    """ FIX: Added to resolve BuildError for 'add_to_cart' """
+    if 'cart' not in session:
+        session['cart'] = []
+    
+    cart = session['cart']
+    cart.append(id)
+    session['cart'] = cart
+    
+    flash("Item added to cart!")
+    return redirect(url_for('index'))
+
 @app.route('/cart')
 def cart():
     cart_ids = session.get('cart', [])
     products = Product.query.filter(Product.id.in_(cart_ids)).all() if cart_ids else []
     return render_template('cart.html', products=products)
+
+@app.route('/remove_from_cart/<int:id>')
+def remove_from_cart(id):
+    cart = session.get('cart', [])
+    if id in cart:
+        cart.remove(id)
+        session['cart'] = cart
+    return redirect(url_for('cart'))
+
+# --- USER & ACCOUNT ROUTES ---
 
 @app.route('/profile')
 @login_required
@@ -76,7 +107,7 @@ def checkout():
     items = Product.query.filter(Product.id.in_(cart_ids)).all() if cart_ids else []
     
     if not items:
-        flash("Your bag is empty!")
+        flash("Your cart is empty!")
         return redirect(url_for('index'))
 
     total = sum(i.price for i in items)
@@ -92,16 +123,21 @@ def checkout():
         db.session.commit()
         session.pop('cart', None)
         flash("ORDER_SUCCESS") 
-        return redirect(url_for('checkout'))
+        return redirect(url_for('profile'))
 
     return render_template('checkout.html', total=total, items=items)
 
 # --- AUTH ROUTES ---
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=hashed_pw)
+        new_user = User(
+            full_name=request.form.get('full_name'), 
+            email=request.form.get('email'), 
+            password=hashed_pw
+        )
         db.session.add(new_user)
         db.session.commit()
         return redirect(url_for('login'))
@@ -114,6 +150,7 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('index'))
+        flash("Invalid Credentials")
     return render_template('login.html')
 
 @app.route('/logout')
@@ -121,17 +158,22 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- HELPER ROUTE TO RECREATE DATABASE ON RENDER ---
+# --- ORDER ACTIONS ---
+
+@app.route('/cancel_order/<int:id>')
+@login_required
+def cancel_order(id):
+    order = Order.query.get_or_404(id)
+    if order.user_id == current_user.id:
+        order.status = "Cancelled"
+        db.session.commit()
+    return redirect(url_for('profile'))
+
 @app.route('/init-db')
 def init_db():
+    """ Use this once on Render to setup your Postgres tables """
     db.create_all()
-    return "Database tables created successfully!"
-    
-@app.route('/product/<int:id>')
-def product_detail(id):
-    product = Product.query.get_or_404(id)
-    return render_template('product_detail.html', product=product)
-    
+    return "Tables Created!"
+
 if __name__ == '__main__':
-    # Render requires host 0.0.0.0
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
