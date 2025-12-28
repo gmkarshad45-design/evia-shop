@@ -116,6 +116,7 @@
             display: block;
             text-align: center;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
         }
 
         .btn-checkout:active { 
@@ -143,12 +144,12 @@
         {% if products %}
             {% for item in products %}
             <div class="cart-item">
-                <img src="{{ item.image }}" alt="{{ item.name }}">
+                <img src="{{ item.image }}" alt="{{ item.name }}" onerror="this.src='https://placehold.co/100x100?text=EVIA'">
                 <div class="item-details">
                     <div class="item-name">{{ item.name }}</div>
                     <div class="item-price">₹{{ item.price }}</div>
                     
-                    <a href="{{ url_for('delete_product', id=item.id) }}" class="remove-btn">
+                    <a href="{{ url_for('delete_cart_item', id=item.id) }}" class="remove-btn">
                         <i class="fa fa-trash"></i>
                     </a>
                     
@@ -174,7 +175,9 @@
             <span class="summary-label">Bag Total ({{ products|length }} items)</span>
             <span class="summary-value">₹{{ total }}</span>
         </div>
-        <a href="{{ url_for('admin_panel') }}" class="btn-checkout">PROCEED TO CHECKOUT</a>
+        <form action="/checkout" method="POST">
+            <button type="submit" class="btn-checkout">PROCEED TO CHECKOUT</button>
+        </form>
     </div>
     {% endif %}
 
