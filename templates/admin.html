@@ -13,8 +13,8 @@
         .nav-link:hover, .nav-link.active { background: #34495e; color: white; }
         .card { border: none; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); border-radius: 10px; }
         .status-badge { font-size: 0.75rem; padding: 5px 10px; border-radius: 20px; }
-        /* Style for the detail box in modal */
         .detail-box { background: #f1f3f6; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; border-left: 4px solid #3498db; white-space: pre-wrap; }
+        .prod-img { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
@@ -25,8 +25,8 @@
             <h4 class="fw-bold mb-4 text-center"><i class="fa fa-user-shield"></i> Admin</h4>
             <ul class="nav flex-column">
                 <li class="nav-item"><a class="nav-link active" href="#"><i class="fa fa-tachometer-alt me-2"></i> Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link text-danger" href="/admin_logout"><i class="fa fa-lock me-2"></i> Lock Panel</a></li>
-                <li class="nav-item"><a class="nav-link" href="/"><i class="fa fa-eye me-2"></i> View Shop</a></li>
+                <li class="nav-item"><a class="nav-link text-danger" href="{{ url_for('logout') }}"><i class="fa fa-lock me-2"></i> Logout</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><i class="fa fa-eye me-2"></i> View Shop</a></li>
             </ul>
         </nav>
 
@@ -43,7 +43,7 @@
             {% with messages = get_flashed_messages() %}
               {% if messages %}
                 {% for message in messages %}
-                  <div class="alert alert-success alert-dismissible fade show" role="alert">
+                  <div class="alert alert-info alert-dismissible fade show" role="alert">
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                   </div>
@@ -60,76 +60,27 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>ID</th>
+                                        <th>Customer</th>
                                         <th>Status</th>
                                         <th>Amount</th>
-                                        <th>Details</th>
-                                        <th>Tracking Actions</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for order in orders %}
                                     <tr>
                                         <td><strong>#{{ order.id }}</strong></td>
+                                        <td>{{ order.customer.full_name }}</td>
                                         <td>
-                                            <span class="badge status-badge 
-                                                {% if order.status == 'Placed' %}bg-secondary
-                                                {% elif order.status == 'Shipped' %}bg-primary
-                                                {% elif order.status == 'Out for Delivery' %}bg-warning text-dark
-                                                {% elif order.status == 'Delivered' %}bg-success
-                                                {% elif order.status == 'Cancelled' %}bg-danger
-                                                {% else %}bg-info{% endif %}">
-                                                {{ order.status }}
-                                            </span>
+                                            <span class="badge status-badge bg-info">{{ order.status }}</span>
                                         </td>
                                         <td>₹{{ order.total_price }}</td>
                                         <td>
                                             <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
-                                                <i class="fa fa-address-card me-1"></i> View Full Info
+                                                View
                                             </button>
                                         </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="{{ url_for('update_order_status', id=order.id, new_status='Shipped') }}" class="btn btn-outline-primary">Ship</a>
-                                                <a href="{{ url_for('update_order_status', id=order.id, new_status='Out for Delivery') }}" class="btn btn-outline-warning">Out</a>
-                                                <a href="{{ url_for('update_order_status', id=order.id, new_status='Delivered') }}" class="btn btn-outline-success">Done</a>
-                                            </div>
-                                        </td>
                                     </tr>
-
-                                    <div class="modal fade" id="orderModal{{ order.id }}" tabindex="-1">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title fw-bold">Order #{{ order.id }} Information</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <p class="mb-1 text-muted small fw-bold text-uppercase">Customer Name</p>
-                                                    <h6 class="fw-bold mb-3 text-primary">{{ order.customer.full_name }}</h6>
-
-                                                    <p class="mb-2 text-muted small fw-bold text-uppercase">Shipping & WhatsApp Details</p>
-                                                    <div class="detail-box mb-3">
-                                                        {{ order.product_details }}
-                                                    </div>
-                                                    
-                                                    <div class="row text-center mb-2">
-                                                        <div class="col-6 border-end">
-                                                            <p class="text-muted small mb-0">Total Paid</p>
-                                                            <h5 class="fw-bold text-primary">₹{{ order.total_price }}</h5>
-                                                        </div>
-                                                        <div class="col-6">
-                                                            <p class="text-muted small mb-0">Current Status</p>
-                                                            <h5 class="fw-bold text-dark">{{ order.status }}</h5>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-                                                    <a href="{{ url_for('update_order_status', id=order.id, new_status='Cancelled') }}" class="btn btn-danger btn-sm" onclick="return confirm('Cancel this order?')">Cancel Order</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -144,6 +95,7 @@
                             <table class="table table-hover align-middle">
                                 <thead class="table-light">
                                     <tr>
+                                        <th>Image</th>
                                         <th>Product</th>
                                         <th>Price</th>
                                         <th>Action</th>
@@ -152,10 +104,11 @@
                                 <tbody>
                                     {% for product in products %}
                                     <tr>
+                                        <td><img src="{{ product.image }}" class="prod-img" alt="img" onerror="this.src='https://via.placeholder.com/50'"></td>
                                         <td>{{ product.name }}</td>
                                         <td>₹{{ product.price }}</td>
                                         <td>
-                                            <a href="{{ url_for('delete_product', id=product.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete item?')">
+                                            <a href="{{ url_for('admin_delete_product', id=product.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete item?')">
                                                 <i class="fa fa-trash"></i>
                                             </a>
                                         </td>
@@ -188,12 +141,8 @@
                     <input type="number" name="price" class="form-control" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Primary Image URL</label>
-                    <input type="text" name="image_url" class="form-control" placeholder="Main product image" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Secondary Image URL</label>
-                    <input type="text" name="image_2_url" class="form-control" placeholder="Optional: second image link">
+                    <label class="form-label">Direct Image URL</label>
+                    <input type="text" name="image" class="form-control" placeholder="https://site.com/photo.jpg" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Description</label>
