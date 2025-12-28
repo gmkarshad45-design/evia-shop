@@ -3,130 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | EVIA</title>
+    <title>Admin | EVIA</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background: #f4f7f6; font-family: 'Inter', sans-serif; margin: 0; }
-        .sidebar { background: #1a1a1a; min-height: 100vh; color: white; padding: 20px; position: fixed; width: 240px; }
-        .main-content { margin-left: 240px; padding: 30px; width: calc(100% - 240px); }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .nav-link { color: #888; margin: 10px 0; border-radius: 8px; transition: 0.3s; }
-        .nav-link.active, .nav-link:hover { background: #333; color: white; }
-        .thumb-img { width: 45px; height: 45px; object-fit: cover; border-radius: 6px; margin-right: 5px; border: 1px solid #eee; }
-        
-        @media (max-width: 768px) {
-            .sidebar { width: 70px; padding: 10px; }
-            .sidebar h4, .sidebar span { display: none; }
-            .main-content { margin-left: 70px; width: calc(100% - 70px); }
-        }
+        .sidebar { background: #000; color: white; min-height: 100vh; padding: 20px; width: 250px; position: fixed; }
+        .content { margin-left: 250px; padding: 30px; }
+        .order-card { background: white; border-radius: 12px; border: 1px solid #eee; margin-bottom: 15px; padding: 15px; }
+        @media (max-width: 768px) { .sidebar { display: none; } .content { margin-left: 0; } }
     </style>
 </head>
-<body>
+<body class="bg-light">
 
 <div class="sidebar">
-    <h4 class="fw-bold mb-4 text-center">EVIA</h4>
-    <nav class="nav flex-column">
-        <a class="nav-link active" href="/admin"><i class="fa fa-home me-2"></i> <span>Dashboard</span></a>
-        <a class="nav-link" href="/"><i class="fa fa-shopping-bag me-2"></i> <span>View Shop</span></a>
-        <a class="nav-link text-danger mt-5" href="/logout"><i class="fa fa-sign-out-alt me-2"></i> <span>Logout</span></a>
-    </nav>
+    <h3 class="fw-bold mb-4">EVIA ADMIN</h3>
+    <a href="/" class="text-white d-block mb-3 text-decoration-none">View Shop</a>
+    <a href="/logout" class="text-danger d-block text-decoration-none">Logout</a>
 </div>
 
-<div class="main-content">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold mb-0">Management</h2>
-            <p class="text-muted small">Manage your inventory and products</p>
+<div class="content">
+    <h2 class="fw-bold mb-4">Manage Orders</h2>
+    
+    {% for o in orders %}
+    <div class="order-card shadow-sm">
+        <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
+            <span class="fw-bold">Order #{{ o.id }}</span>
+            <span class="badge bg-warning text-dark">{{ o.status }}</span>
         </div>
-        <button class="btn btn-dark px-4 py-2" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#addModal">
-            <i class="fa fa-plus me-2"></i> New Product
-        </button>
-    </div>
-
-    <div class="card p-4">
-        <h5 class="fw-bold mb-4">Product Inventory</h5>
-        <div class="table-responsive">
-            <table class="table align-middle">
-                <thead>
-                    <tr class="text-muted small uppercase">
-                        <th>Product Images</th>
-                        <th>Name</th>
-                        <th>Price</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in products %}
-                    <tr>
-                        <td>
-                            <div class="d-flex">
-                                <img src="{{ p.image }}" class="thumb-img" title="Primary Image">
-                                {% if p.image_2 %}
-                                <img src="{{ p.image_2 }}" class="thumb-img" title="Secondary Image">
-                                {% else %}
-                                <div class="thumb-img d-flex align-items-center justify-content-center bg-light text-muted" style="font-size: 10px; border: 1px dashed #ccc;">No 2nd</div>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td>
-                            <div class="fw-bold" style="font-size: 14px;">{{ p.name }}</div>
-                        </td>
-                        <td>
-                            <span class="badge bg-light text-dark fw-bold" style="font-size: 13px;">₹{{ p.price }}</span>
-                        </td>
-                        <td class="text-end">
-                            <a href="{{ url_for('admin_delete_product', id=p.id) }}" 
-                               class="btn btn-sm btn-outline-danger" 
-                               onclick="return confirm('Are you sure you want to delete this product?')"
-                               style="border-radius: 8px;">
-                                <i class="fa fa-trash-alt"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="row">
+            <div class="col-md-4">
+                <small class="text-muted d-block">CUSTOMER</small>
+                <div class="fw-bold">{{ o.customer.full_name }}</div>
+                <a href="https://wa.me/91{{ o.whatsapp }}" class="btn btn-sm btn-success mt-2"><i class="fab fa-whatsapp"></i> Chat</a>
+            </div>
+            <div class="col-md-4">
+                <small class="text-muted d-block">ADDRESS</small>
+                <div class="small">{{ o.address }}</div>
+            </div>
+            <div class="col-md-4">
+                <small class="text-muted d-block">ITEMS</small>
+                <div class="small fw-bold text-primary">{{ o.product_details }}</div>
+                <div class="mt-3">
+                    <a href="{{ url_for('update_order_status', id=o.id, st='Shipped') }}" class="btn btn-outline-dark btn-sm">Ship</a>
+                    <a href="{{ url_for('update_order_status', id=o.id, st='Delivered') }}" class="btn btn-dark btn-sm">Deliver</a>
+                </div>
+            </div>
         </div>
     </div>
+    {% endfor %}
 </div>
 
-<div class="modal fade" id="addModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <form method="POST" class="modal-content" style="border-radius: 20px; border: none;">
-            <div class="modal-header border-0 pt-4 px-4">
-                <h5 class="modal-title fw-bold">Add New Product</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body px-4">
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-muted">PRODUCT NAME</label>
-                    <input type="text" name="name" class="form-control" placeholder="e.g. Premium Oversized Tee" required style="border-radius: 10px;">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-muted">PRICE (₹)</label>
-                    <input type="number" name="price" class="form-control" placeholder="999" required style="border-radius: 10px;">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-muted">PRIMARY IMAGE URL</label>
-                    <input type="text" name="image" class="form-control" placeholder="Paste main image link" required style="border-radius: 10px;">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-muted">SECONDARY IMAGE URL (FOR SWIPE)</label>
-                    <input type="text" name="image_2" class="form-control" placeholder="Paste second image link (Optional)" style="border-radius: 10px;">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-muted">DESCRIPTION</label>
-                    <textarea name="description" class="form-control" rows="3" placeholder="Tell customers about the fabric, fit, etc." style="border-radius: 10px;"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer border-0 pb-4 px-4">
-                <button type="submit" class="btn btn-dark w-100 py-3 fw-bold" style="border-radius: 12px;">SAVE PRODUCT</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
