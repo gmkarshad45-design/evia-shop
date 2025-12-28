@@ -50,7 +50,7 @@
         <div class="col-md-3 desktop-sidebar d-none d-md-block">
             <div class="list-group shadow-sm border-0">
                 <div class="list-group-item bg-dark text-white fw-bold py-3">
-                    <i class="fa fa-user-circle me-2"></i> {{ current_user.email.split('@')[0] }}
+                    <i class="fa fa-user-circle me-2"></i> {{ current_user.full_name or 'User' }}
                 </div>
                 <a href="/profile" class="list-group-item list-group-item-action active">My Orders</a>
                 <a href="/" class="list-group-item list-group-item-action">Continue Shopping</a>
@@ -108,18 +108,19 @@
 
                     <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
                         <div>
-                            <p class="mb-0 text-muted small">Amount</p>
+                            <p class="mb-0 text-muted small">Total Price</p>
                             <h5 class="fw-bold text-dark mb-0">₹{{ order.total_price }}</h5>
                         </div>
                         
                         <div class="d-flex gap-2">
-                            {% if order.status == "Pending WhatsApp Verification" or order.status == "Placed" %}
+                            {% if order.status == "Pending" or order.status == "Placed" %}
                                 <a href="{{ url_for('cancel_order', id=order.id) }}" 
                                    class="btn btn-sm btn-outline-danger fw-bold" 
-                                   onclick="return confirm('Cancel this order?')">CANCEL</a>
+                                   onclick="return confirm('Are you sure you want to cancel this order?')">CANCEL</a>
                             {% endif %}
 
-                            <a href="https://wa.me/6360811196?text=Help with Order #{{ order.id }}" 
+                            <a href="https://wa.me/916360811196?text=Hi, I need help with my Order #{{ order.id }}" 
+                               target="_blank"
                                class="btn btn-sm btn-success fw-bold">
                                <i class="fab fa-whatsapp"></i> HELP
                             </a>
@@ -128,10 +129,11 @@
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="bg-white p-5 text-center rounded border mx-2">
+                <div class="bg-white p-5 text-center rounded border mx-2 shadow-sm">
                     <i class="fa fa-box-open fa-3x text-muted mb-3"></i>
-                    <h5 class="fw-bold">No orders yet!</h5>
-                    <a href="/" class="btn btn-warning mt-2 fw-bold">Start Shopping</a>
+                    <h5 class="fw-bold">No orders found!</h5>
+                    <p class="text-muted small">You haven't placed any orders yet.</p>
+                    <a href="/" class="btn btn-warning mt-2 fw-bold px-4 rounded-pill">Start Shopping</a>
                 </div>
             {% endif %}
         </div>
