@@ -6,21 +6,22 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'evia_pro_ultra_2025'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_pro_ultra_2025')
 
-# --- DATABASE SETUP ---
-database_url = os.getenv("DATABASE_URL")
+# --- DATABASE SETUP (FIXED FOR POSTGRESQL) ---
+database_url = os.environ.get("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
+    # Render provides postgres://, but SQLAlchemy 1.4+ requires postgresql://
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///evia_pro_final.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///evia_db.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# --- MODELS (Matched to your HTML fields) ---
+# --- MODELS ---
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(150), nullable=False)
@@ -48,36 +49,36 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Create tables
-with app.app_context():
-    db.create_all()
-
-# --- SHOP ROUTES ---
+# --- ROUTES ---
 
 @app.route('/')
 def index():
     products = Product.query.all()
     return render_template('index.html', products=products)
 
+# FIX: Added the Cart route to stop 'url_build_error' crashing your HTML links
+@app.route('/cart')
+def cart():
+    cart_ids = session.get('cart', [])
+    products = Product.query.filter(Product.id.in_(cart_ids)).all() if cart_ids else []
+    return render_template('cart.html', products=products)
+
 @app.route('/profile')
 @login_required
 def profile():
-    # Pass 'orders' variable so profile.html doesn't crash
     user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
     return render_template('profile.html', orders=user_orders)
 
 @app.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
-    # Logic to get items for the checkout page
-    items = []
-    if session.get('checkout_mode') == 'cart':
-        items = [Product.query.get(pid) for pid in session.get('cart', []) if Product.query.get(pid)]
-    else:
-        p = Product.query.get(session.get('single_id'))
-        if p: items = [p]
+    cart_ids = session.get('cart', [])
+    items = Product.query.filter(Product.id.in_(cart_ids)).all() if cart_ids else []
+    
+    if not items:
+        flash("Your bag is empty!")
+        return redirect(url_for('index'))
 
-    if not items: return redirect(url_for('index'))
     total = sum(i.price for i in items)
 
     if request.method == 'POST':
@@ -95,37 +96,12 @@ def checkout():
 
     return render_template('checkout.html', total=total, items=items)
 
-# --- ACTION ROUTES (Required by profile.html buttons) ---
-
-@app.route('/cancel_order/<int:id>')
-@login_required
-def cancel_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id:
-        order.status = "Cancelled"
-        db.session.commit()
-    return redirect(url_for('profile'))
-
-@app.route('/return_order/<int:id>')
-@login_required
-def return_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id:
-        order.status = "Return Requested"
-        db.session.commit()
-    return redirect(url_for('profile'))
-
 # --- AUTH ROUTES ---
-
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(
-            full_name=request.form.get('full_name'),
-            email=request.form.get('email'),
-            password=hashed_pw
-        )
+        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=hashed_pw)
         db.session.add(new_user)
         db.session.commit()
         return redirect(url_for('login'))
@@ -145,5 +121,12 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
+# --- HELPER ROUTE TO RECREATE DATABASE ON RENDER ---
+@app.route('/init-db')
+def init_db():
+    db.create_all()
+    return "Database tables created successfully!"
+
 if __name__ == '__main__':
+    # Render requires host 0.0.0.0
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
