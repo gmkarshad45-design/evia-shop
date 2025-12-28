@@ -6,10 +6,9 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-# Secret Key is vital for Cart sessions
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_pro_ultra_2025')
 
-# --- DATABASE SETUP (Render PostgreSQL Fix) ---
+# --- DATABASE SETUP ---
 database_url = os.environ.get("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -49,8 +48,7 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- ROUTES ---
-
+# --- MAIN ROUTES ---
 @app.route('/')
 def index():
     products = Product.query.all()
@@ -61,17 +59,16 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# FIXED CART LOGIC
+# --- CART LOGIC ---
 @app.route('/add_to_cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session:
         session['cart'] = []
     
-    # Create a local copy to ensure Flask detects the change
     cart_list = list(session['cart'])
     cart_list.append(id)
     session['cart'] = cart_list
-    session.modified = True # Tells the browser to save the cookie
+    session.modified = True 
     
     flash("Product added to cart!")
     return redirect(url_for('index'))
@@ -79,11 +76,17 @@ def add_to_cart(id):
 @app.route('/cart')
 def cart():
     cart_ids = session.get('cart', [])
-    products = Product.query.filter(Product.id.in_(cart_ids)).all() if cart_ids else []
-    total = sum(p.price for p in products)
+    # Fetch products and maintain duplicates
+    products = []
+    total = 0
+    for p_id in cart_ids:
+        p = Product.query.get(p_id)
+        if p:
+            products.append(p)
+            total += p.price
     return render_template('cart.html', products=products, total=total)
 
-# FIXED PROFILE ROUTE (Stops Internal Error)
+# --- PROFILE & ORDERS ---
 @app.route('/profile')
 @login_required
 def profile():
@@ -91,34 +94,56 @@ def profile():
         user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
         return render_template('profile.html', orders=user_orders)
     except Exception as e:
-        print(f"Order Table Error: {e}")
-        return "Database table error. Visit /init-db to fix.", 500
+        return f"Database error: {e}. Visit /init-db to fix.", 500
 
 @app.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
     cart_ids = session.get('cart', [])
-    items = Product.query.filter(Product.id.in_(cart_ids)).all() if cart_ids else []
-    
-    if not items:
+    if not cart_ids:
         return redirect(url_for('index'))
 
+    items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
     total = sum(i.price for i in items)
 
     if request.method == 'POST':
-        addr = f"{request.form.get('address')}, {request.form.get('district')}"
+        # Create a readable string of items for the profile view
+        item_names = ", ".join([i.name for i in items])
+        
         new_order = Order(
-            product_details=f"Items: {len(items)}",
+            product_details=item_names,
             total_price=total,
             user_id=current_user.id,
             status="Placed"
         )
         db.session.add(new_order)
         db.session.commit()
-        session.pop('cart', None) # Clear cart
+        session.pop('cart', None) 
+        flash("Order placed successfully!")
         return redirect(url_for('profile'))
 
     return render_template('checkout.html', total=total, items=items)
+
+# --- NEW: ORDER ACTIONS ---
+@app.route('/cancel_order/<int:id>')
+@login_required
+def cancel_order(id):
+    order = Order.query.get_or_404(id)
+    if order.user_id == current_user.id and order.status == "Placed":
+        order.status = "Cancelled"
+        db.session.commit()
+        flash("Order #ORD-{} has been cancelled.".format(id))
+    return redirect(url_for('profile'))
+
+@app.route('/return_order/<int:id>')
+@login_required
+def return_order(id):
+    order = Order.query.get_or_404(id)
+    if order.user_id == current_user.id and order.status == "Delivered":
+        order.status = "Return Requested"
+        db.session.commit()
+        flash("Return request sent for Order #ORD-{}.".format(id))
+    return redirect(url_for('profile'))
 
 # --- AUTH ---
 @app.route('/signup', methods=['GET', 'POST'])
@@ -126,9 +151,12 @@ def signup():
     if request.method == 'POST':
         hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
         new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=hashed_pw)
-        db.session.add(new_user)
-        db.session.commit()
-        return redirect(url_for('login'))
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            return redirect(url_for('login'))
+        except:
+            flash("Email already exists.")
     return render_template('signup.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -138,6 +166,7 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('index'))
+        flash("Invalid credentials")
     return render_template('login.html')
 
 @app.route('/logout')
@@ -145,17 +174,17 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- CRITICAL DATABASE RESET ROUTE ---
+# --- DATABASE RESET ---
 @app.route('/init-db')
 def init_db():
-    """ Run this to fix the Internal Error in My Orders """
     db.drop_all()
     db.create_all()
-    # Add a sample product so shop isn't empty
-    sample = Product(name="Test Shirt", price=500, description="Test", image="")
-    db.session.add(sample)
+    # Add sample products
+    p1 = Product(name="Casual Blue Shirt", price=899, description="Cotton slim fit", image="")
+    p2 = Product(name="Running Shoes", price=2499, description="Breathable mesh", image="")
+    db.session.add_all([p1, p2])
     db.session.commit()
-    return "Database Fixed! Tables Recreated. New Test Product Added."
+    return "Database Cleaned & Rebuilt! <a href='/'>Go Home</a>"
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)), debug=True)
