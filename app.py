@@ -126,7 +126,12 @@ def logout():
 def init_db():
     db.create_all()
     return "Database tables created successfully!"
-
+    
+@app.route('/product/<int:id>')
+def product_detail(id):
+    product = Product.query.get_or_404(id)
+    return render_template('product_detail.html', product=product)
+    
 if __name__ == '__main__':
     # Render requires host 0.0.0.0
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
