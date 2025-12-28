@@ -7,57 +7,81 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background: #f4f7f6; font-family: 'Inter', sans-serif; }
+        body { background: #f4f7f6; font-family: 'Inter', sans-serif; margin: 0; }
         .sidebar { background: #1a1a1a; min-height: 100vh; color: white; padding: 20px; position: fixed; width: 240px; }
-        .main-content { margin-left: 260px; padding: 30px; }
+        .main-content { margin-left: 240px; padding: 30px; width: calc(100% - 240px); }
         .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .nav-link { color: #888; margin: 10px 0; border-radius: 8px; }
+        .nav-link { color: #888; margin: 10px 0; border-radius: 8px; transition: 0.3s; }
         .nav-link.active, .nav-link:hover { background: #333; color: white; }
-        .thumb-img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; margin-right: 5px; border: 1px solid #ddd; }
+        .thumb-img { width: 45px; height: 45px; object-fit: cover; border-radius: 6px; margin-right: 5px; border: 1px solid #eee; }
+        
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 10px; }
+            .sidebar h4, .sidebar span { display: none; }
+            .main-content { margin-left: 70px; width: calc(100% - 70px); }
+        }
     </style>
 </head>
 <body>
 
 <div class="sidebar">
-    <h4 class="fw-bold mb-4">EVIA ADMIN</h4>
+    <h4 class="fw-bold mb-4 text-center">EVIA</h4>
     <nav class="nav flex-column">
-        <a class="nav-link active" href="#"><i class="fa fa-home me-2"></i> Dashboard</a>
-        <a class="nav-link" href="/"><i class="fa fa-shopping-bag me-2"></i> View Shop</a>
-        <a class="nav-link text-danger mt-5" href="/logout"><i class="fa fa-sign-out-alt me-2"></i> Logout</a>
+        <a class="nav-link active" href="/admin"><i class="fa fa-home me-2"></i> <span>Dashboard</span></a>
+        <a class="nav-link" href="/"><i class="fa fa-shopping-bag me-2"></i> <span>View Shop</span></a>
+        <a class="nav-link text-danger mt-5" href="/logout"><i class="fa fa-sign-out-alt me-2"></i> <span>Logout</span></a>
     </nav>
 </div>
 
 <div class="main-content">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold">Management</h2>
-        <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#addModal">
+        <div>
+            <h2 class="fw-bold mb-0">Management</h2>
+            <p class="text-muted small">Manage your inventory and products</p>
+        </div>
+        <button class="btn btn-dark px-4 py-2" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#addModal">
             <i class="fa fa-plus me-2"></i> New Product
         </button>
     </div>
 
     <div class="card p-4">
-        <h5 class="fw-bold mb-3">Inventory</h5>
+        <h5 class="fw-bold mb-4">Product Inventory</h5>
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead>
-                    <tr>
-                        <th>Images</th>
+                    <tr class="text-muted small uppercase">
+                        <th>Product Images</th>
                         <th>Name</th>
                         <th>Price</th>
-                        <th>Action</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in products %}
                     <tr>
                         <td>
-                            <img src="{{ p.image }}" class="thumb-img">
-                            {% if p.image_2 %}<img src="{{ p.image_2 }}" class="thumb-img">{% endif %}
+                            <div class="d-flex">
+                                <img src="{{ p.image }}" class="thumb-img" title="Primary Image">
+                                {% if p.image_2 %}
+                                <img src="{{ p.image_2 }}" class="thumb-img" title="Secondary Image">
+                                {% else %}
+                                <div class="thumb-img d-flex align-items-center justify-content-center bg-light text-muted" style="font-size: 10px; border: 1px dashed #ccc;">No 2nd</div>
+                                {% endif %}
+                            </div>
                         </td>
-                        <td>{{ p.name }}</td>
-                        <td>₹{{ p.price }}</td>
                         <td>
-                            <a href="{{ url_for('admin_delete_product', id=p.id) }}" class="text-danger" onclick="return confirm('Delete?')"><i class="fa fa-trash"></i></a>
+                            <div class="fw-bold" style="font-size: 14px;">{{ p.name }}</div>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark fw-bold" style="font-size: 13px;">₹{{ p.price }}</span>
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('admin_delete_product', id=p.id) }}" 
+                               class="btn btn-sm btn-outline-danger" 
+                               onclick="return confirm('Are you sure you want to delete this product?')"
+                               style="border-radius: 8px;">
+                                <i class="fa fa-trash-alt"></i>
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -68,36 +92,36 @@
 </div>
 
 <div class="modal fade" id="addModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="POST" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold">Add Product</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" class="modal-content" style="border-radius: 20px; border: none;">
+            <div class="modal-header border-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold">Add New Product</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body px-4">
                 <div class="mb-3">
-                    <label class="form-label small fw-bold">Product Name</label>
-                    <input type="text" name="name" class="form-control" required>
+                    <label class="form-label small fw-bold text-muted">PRODUCT NAME</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Premium Oversized Tee" required style="border-radius: 10px;">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label small fw-bold">Price (₹)</label>
-                    <input type="number" name="price" class="form-control" required>
+                    <label class="form-label small fw-bold text-muted">PRICE (₹)</label>
+                    <input type="number" name="price" class="form-control" placeholder="999" required style="border-radius: 10px;">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label small fw-bold">Primary Image URL</label>
-                    <input type="text" name="image" class="form-control" placeholder="https://..." required>
+                    <label class="form-label small fw-bold text-muted">PRIMARY IMAGE URL</label>
+                    <input type="text" name="image" class="form-control" placeholder="Paste main image link" required style="border-radius: 10px;">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label small fw-bold">Secondary Image URL (Scroll Photo)</label>
-                    <input type="text" name="image_2" class="form-control" placeholder="https://...">
+                    <label class="form-label small fw-bold text-muted">SECONDARY IMAGE URL (FOR SWIPE)</label>
+                    <input type="text" name="image_2" class="form-control" placeholder="Paste second image link (Optional)" style="border-radius: 10px;">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label small fw-bold">Description</label>
-                    <textarea name="description" class="form-control" rows="3"></textarea>
+                    <label class="form-label small fw-bold text-muted">DESCRIPTION</label>
+                    <textarea name="description" class="form-control" rows="3" placeholder="Tell customers about the fabric, fit, etc." style="border-radius: 10px;"></textarea>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-dark w-100">Save Product</button>
+            <div class="modal-footer border-0 pb-4 px-4">
+                <button type="submit" class="btn btn-dark w-100 py-3 fw-bold" style="border-radius: 12px;">SAVE PRODUCT</button>
             </div>
         </form>
     </div>
