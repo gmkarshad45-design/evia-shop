@@ -9,7 +9,6 @@
     <style>
         body { font-family: 'Inter', sans-serif; background: #ffffff; color: #111; padding-bottom: 90px; margin: 0; }
         
-        /* Navigation & Cart Icon */
         .back-nav { 
             padding: 12px 15px; 
             border-bottom: 1px solid #eee; 
@@ -22,7 +21,6 @@
             z-index: 1100;
         }
 
-        /* --- HORIZONTAL SCROLL --- */
         .scroll-container { position: relative; width: 100%; background: #fff; }
         .scroll-wrapper {
             display: flex;
@@ -50,19 +48,16 @@
         .dot { width: 6px; height: 6px; background: #e0e0e0; border-radius: 50%; transition: 0.3s; }
         .dot.active { background: #000; width: 12px; border-radius: 10px; }
 
-        /* Product Info */
         .brand-tag { font-size: 10px; font-weight: 800; color: #999; text-transform: uppercase; letter-spacing: 1px; }
         .product-name { font-weight: 800; font-size: 1.3rem; margin: 5px 0; }
         .price-section { font-size: 1.2rem; font-weight: 800; color: #000; margin-bottom: 20px; }
 
-        /* Delivery Box */
         .pincode-box { background: #f8f8f8; border: 1px solid #efefef; border-radius: 10px; padding: 15px; }
         .pin-label { font-size: 10px; font-weight: 800; color: #666; margin-bottom: 8px; }
         .pin-input-group { display: flex; gap: 8px; }
         .pin-input { flex: 1; height: 38px; border: 1px solid #ddd; border-radius: 5px; padding: 0 12px; font-size: 13px; }
         .pin-btn { background: #000; color: #fff; border: none; padding: 0 15px; border-radius: 5px; font-size: 11px; font-weight: 700; }
         
-        /* Bottom Action Bar */
         .bottom-bar {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: #fff; padding: 12px 15px;
@@ -81,7 +76,6 @@
             display: flex; align-items: center; justify-content: center;
         }
 
-        /* Toast Notification */
         #cart-toast {
             visibility: hidden; min-width: 200px; background-color: #333;
             color: #fff; text-align: center; border-radius: 50px; padding: 12px;
@@ -92,11 +86,6 @@
 
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 100px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 100px; opacity: 1;} to {bottom: 0; opacity: 0;} }
-
-        @media (min-width: 768px) {
-            .scroll-item { height: 500px; }
-            .content-pad { padding-left: 50px; }
-        }
     </style>
 </head>
 <body>
@@ -109,7 +98,7 @@
         <a href="/cart" class="text-dark position-relative me-2">
             <i class="fa fa-shopping-bag" style="font-size: 18px;"></i>
             <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9px;">
-                {{ session['cart']|length if session['cart'] else 0 }}
+                {{ session['cart']|length if session.get('cart') else 0 }}
             </span>
         </a>
     </div>
@@ -120,7 +109,7 @@
                 <div class="scroll-container">
                     <div class="scroll-wrapper" id="imageScroller">
                         <div class="scroll-item">
-                            <img src="{{ product.image }}" alt="{{ product.name }}">
+                            <img src="{{ product.image }}" alt="{{ product.name }}" onerror="this.src='https://placehold.co/400x400?text=Product+Image'">
                         </div>
                         {% if product.image_2 %}
                         <div class="scroll-item">
@@ -138,7 +127,7 @@
                 </div>
             </div>
 
-            <div class="col-12 col-md-6 p-4 content-pad">
+            <div class="col-12 col-md-6 p-4">
                 <div class="brand-tag">Premium Surplus</div>
                 <h1 class="product-name">{{ product.name }}</h1>
                 <div class="price-section">₹{{ product.price }}</div>
@@ -168,11 +157,10 @@
 
     <div class="bottom-bar">
         <button class="cart-btn" onclick="addToCart({{ product.id }})">ADD TO CART</button>
-        <a href="{{ url_for('buy_now', id=product.id) }}" class="buy-btn-split">BUY NOW</a>
+        <a href="{{ url_for('add_to_cart', id=product.id) }}" class="buy-btn-split">BUY NOW</a>
     </div>
 
     <script>
-        // Pincode logic
         function checkDelivery() {
             const pin = document.getElementById('pinCode').value;
             const msg = document.getElementById('deliveryMsg');
@@ -185,7 +173,6 @@
             }
         }
 
-        // Image scroll dots logic
         const scroller = document.getElementById('imageScroller');
         const dots = document.querySelectorAll('.dot');
         if (scroller && dots.length > 0) {
@@ -197,16 +184,20 @@
             });
         }
 
-        // Add to Cart Logic
+        // Add to Cart with AJAX (So page doesn't reload)
         function addToCart(productId) {
-            fetch('/add_to_cart/' + productId)
-                .then(response => response.json())
-                .then(data => {
-                    if(data.status === 'success') {
-                        showToast();
-                        document.getElementById('cart-count').innerText = data.cart_count;
-                    }
-                });
+            fetch('/add_to_cart/' + productId, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => {
+                if(response.ok) {
+                    showToast();
+                    // Update the badge count manually
+                    let countObj = document.getElementById('cart-count');
+                    countObj.innerText = parseInt(countObj.innerText) + 1;
+                }
+            });
         }
 
         function showToast() {
