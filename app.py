@@ -6,14 +6,13 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'evia_clothing_2025_secure_key'
+app.config['SECRET_KEY'] = 'evia_production_secret_9988'
 
-# --- DATABASE CONFIG ---
+# --- DATABASE SETUP ---
 database_url = os.environ.get("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///evia_db.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///evia_shop.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -32,8 +31,8 @@ class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    image = db.Column(db.String(500))    # Primary Image
-    image_2 = db.Column(db.String(500))  # Secondary Image
+    image = db.Column(db.String(500))
+    image_2 = db.Column(db.String(500))
     description = db.Column(db.Text)
 
 class Order(db.Model):
@@ -48,14 +47,11 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- SHOP ROUTES ---
+# --- HOME & PRODUCT ROUTES ---
 @app.route('/')
 def index():
-    query = request.args.get('q')
-    if query:
-        products = Product.query.filter(Product.name.contains(query)).all()
-    else:
-        products = Product.query.all()
+    q = request.args.get('q')
+    products = Product.query.filter(Product.name.contains(q)).all() if q else Product.query.all()
     return render_template('index.html', products=products)
 
 @app.route('/product/<int:id>')
@@ -63,82 +59,65 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# --- CART SYSTEM ---
-@app.route('/add_to_cart/<int:id>')
-def add_to_cart(id):
-    if 'cart' not in session:
-        session['cart'] = []
-    temp_cart = list(session['cart'])
-    temp_cart.append(id)
-    session['cart'] = temp_cart
-    session.modified = True 
-    flash("Added to bag!")
-    return redirect(request.referrer or url_for('index'))
-
+# --- CART & CHECKOUT ---
 @app.route('/cart')
 def cart():
     cart_ids = session.get('cart', [])
-    # Get products and filter out any that might have been deleted from DB
-    products_in_cart = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
-    total = sum(p.price for p in products_in_cart)
-    return render_template('cart.html', products=products_in_cart, total=total)
+    products = [Product.query.get(pid) for pid in cart_ids if Product.query.get(pid)]
+    total = sum(p.price for p in products)
+    return render_template('cart.html', products=products, total=total)
+
+@app.route('/add_to_cart/<int:id>')
+def add_to_cart(id):
+    if 'cart' not in session: session['cart'] = []
+    cart_list = list(session['cart'])
+    cart_list.append(id)
+    session['cart'] = cart_list
+    session.modified = True
+    flash("Item added to bag!")
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/delete_cart_item/<int:id>')
 def delete_cart_item(id):
     if 'cart' in session:
-        temp_cart = list(session['cart'])
-        if id in temp_cart:
-            temp_cart.remove(id)
-            session['cart'] = temp_cart
+        cart_list = list(session['cart'])
+        if id in cart_list:
+            cart_list.remove(id)
+            session['cart'] = cart_list
             session.modified = True
     return redirect(url_for('cart'))
 
-@app.route('/checkout', methods=['POST'])
+@app.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
     cart_ids = session.get('cart', [])
-    if not cart_ids:
-        return redirect(url_for('index'))
-    products = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
-    details = ", ".join([p.name for p in products])
+    if not cart_ids: return redirect(url_for('index'))
+    
+    products = [Product.query.get(pid) for pid in cart_ids if Product.query.get(pid)]
     total = sum(p.price for p in products)
-    new_order = Order(product_details=details, total_price=total, user_id=current_user.id)
-    db.session.add(new_order)
-    db.session.commit()
-    session.pop('cart', None)
-    return "Order Placed Successfully! <a href='/'>Go Home</a>"
 
-# --- ADMIN ROUTES ---
-@app.route('/admin', methods=['GET', 'POST'])
-@login_required
-def admin_panel():
-    if not current_user.is_admin:
-        return redirect(url_for('index'))
     if request.method == 'POST':
-        new_p = Product(
-            name=request.form.get('name'),
-            price=int(request.form.get('price')),
-            image=request.form.get('image'),
-            image_2=request.form.get('image_2'),
-            description=request.form.get('description')
-        )
-        db.session.add(new_p)
+        details = ", ".join([p.name for p in products])
+        order = Order(product_details=details, total_price=total, user_id=current_user.id)
+        db.session.add(order)
         db.session.commit()
-        return redirect(url_for('admin_panel'))
-    products = Product.query.all()
-    return render_template('admin.html', products=products)
+        session.pop('cart', None)
+        return redirect(url_for('profile'))
+        
+    return render_template('checkout.html', products=products, total=total)
 
-@app.route('/admin/delete/<int:id>')
-@login_required
-def admin_delete_product(id):
-    if not current_user.is_admin:
+# --- USER AUTH & PROFILE ---
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        hashed_pw = generate_password_hash(request.form.get('name'), method='pbkdf2:sha256')
+        user = User(full_name=request.form.get('name'), email=request.form.get('email'), password=hashed_pw)
+        db.session.add(user)
+        db.session.commit()
+        login_user(user)
         return redirect(url_for('index'))
-    product = Product.query.get_or_404(id)
-    db.session.delete(product)
-    db.session.commit()
-    return redirect(url_for('admin_panel'))
+    return render_template('signup.html')
 
-# --- AUTH ROUTES ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -146,23 +125,51 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('admin_panel' if user.is_admin else 'index'))
+        flash("Invalid Credentials")
     return render_template('login.html')
+
+@app.route('/profile')
+@login_required
+def profile():
+    orders = Order.query.filter_by(user_id=current_user.id).all()
+    return render_template('profile.html', orders=orders)
 
 @app.route('/logout')
 def logout():
     logout_user()
     return redirect(url_for('index'))
 
+# --- ADMIN PANEL ---
+@app.route('/admin', methods=['GET', 'POST'])
+@login_required
+def admin_panel():
+    if not current_user.is_admin: return render_template('admin_lock.html')
+    if request.method == 'POST':
+        p = Product(name=request.form.get('name'), price=int(request.form.get('price')),
+                    image=request.form.get('image'), description=request.form.get('description'))
+        db.session.add(p)
+        db.session.commit()
+    return render_template('admin.html', products=Product.query.all())
+
+@app.route('/admin/delete/<int:id>')
+@login_required
+def admin_delete(id):
+    if current_user.is_admin:
+        p = Product.query.get(id)
+        db.session.delete(p)
+        db.session.commit()
+    return redirect(url_for('admin_panel'))
+
+# --- DB INIT ---
 @app.route('/init-db')
 def init_db():
     db.create_all()
-    # Check if admin exists, if not create one
-    if not User.query.filter_by(email="admin@test.com").first():
-        admin_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
-        admin = User(full_name="Admin", email="admin@test.com", password=admin_pw, is_admin=True)
+    if not User.query.filter_by(email="admin@evia.com").first():
+        admin = User(full_name="Admin", email="admin@evia.com", 
+                     password=generate_password_hash("admin123", method='pbkdf2:sha256'), is_admin=True)
         db.session.add(admin)
         db.session.commit()
-    return "DB Initialized. Login: admin@test.com / admin123"
+    return "Database Ready"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
