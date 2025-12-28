@@ -6,7 +6,8 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_pro_ultra_2025')
+# Secret key is REQUIRED for the cart session to save
+app.config['SECRET_KEY'] = 'evia_pro_ultra_secret_key_2025'
 
 # --- DATABASE SETUP ---
 database_url = os.environ.get("DATABASE_URL")
@@ -26,6 +27,7 @@ class User(db.Model, UserMixin):
     full_name = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(500), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
     orders = db.relationship('Order', backref='customer', lazy=True)
 
 class Product(db.Model):
@@ -48,23 +50,20 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- MAIN ROUTES ---
+# --- ROUTES ---
+
 @app.route('/')
 def index():
     products = Product.query.all()
     return render_template('index.html', products=products)
 
-@app.route('/product/<int:id>')
-def product_detail(id):
-    product = Product.query.get_or_404(id)
-    return render_template('product_detail.html', product=product)
-
-# --- CART LOGIC ---
+# --- FIXED CART LOGIC ---
 @app.route('/add_to_cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session:
         session['cart'] = []
     
+    # We must re-assign to session to ensure Flask marks it as "modified"
     cart_list = list(session['cart'])
     cart_list.append(id)
     session['cart'] = cart_list
@@ -76,27 +75,49 @@ def add_to_cart(id):
 @app.route('/cart')
 def cart():
     cart_ids = session.get('cart', [])
-    # Fetch products and maintain duplicates
-    products = []
+    products_in_cart = []
     total = 0
+    
+    # Loop through IDs to allow duplicate items and calculate total correctly
     for p_id in cart_ids:
-        p = Product.query.get(p_id)
-        if p:
-            products.append(p)
-            total += p.price
-    return render_template('cart.html', products=products, total=total)
+        product = Product.query.get(p_id)
+        if product:
+            products_in_cart.append(product)
+            total += product.price
+            
+    return render_template('cart.html', products=products_in_cart, total=total)
 
-# --- PROFILE & ORDERS ---
-@app.route('/profile')
+@app.route('/clear_cart')
+def clear_cart():
+    session.pop('cart', None)
+    return redirect(url_for('cart'))
+
+# --- FIXED ADMIN PANEL ROUTE ---
+@app.route('/admin')
 @login_required
-def profile():
-    try:
-        user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
-        return render_template('profile.html', orders=user_orders)
-    except Exception as e:
-        return f"Database error: {e}. Visit /init-db to fix.", 500
+def admin_panel():
+    if not current_user.is_admin:
+        flash("Unauthorized access!")
+        return redirect(url_for('index'))
+    
+    orders = Order.query.order_by(Order.id.desc()).all()
+    products = Product.query.all()
+    users = User.query.all()
+    return render_template('admin.html', orders=orders, products=products, users=users)
 
-@app.route('/checkout', methods=['GET', 'POST'])
+@app.route('/admin/update_order/<int:id>/<string:status>')
+@login_required
+def update_order(id, status):
+    if not current_user.is_admin:
+        return redirect(url_for('index'))
+    order = Order.query.get_or_404(id)
+    order.status = status
+    db.session.commit()
+    flash(f"Order #{id} updated to {status}")
+    return redirect(url_for('admin_panel'))
+
+# --- CHECKOUT & PROFILE ---
+@app.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
     cart_ids = session.get('cart', [])
@@ -104,69 +125,34 @@ def checkout():
         return redirect(url_for('index'))
 
     items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
+    item_names = ", ".join([i.name for i in items])
     total = sum(i.price for i in items)
 
-    if request.method == 'POST':
-        # Create a readable string of items for the profile view
-        item_names = ", ".join([i.name for i in items])
-        
-        new_order = Order(
-            product_details=item_names,
-            total_price=total,
-            user_id=current_user.id,
-            status="Placed"
-        )
-        db.session.add(new_order)
-        db.session.commit()
-        session.pop('cart', None) 
-        flash("Order placed successfully!")
-        return redirect(url_for('profile'))
-
-    return render_template('checkout.html', total=total, items=items)
-
-# --- NEW: ORDER ACTIONS ---
-@app.route('/cancel_order/<int:id>')
-@login_required
-def cancel_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id and order.status == "Placed":
-        order.status = "Cancelled"
-        db.session.commit()
-        flash("Order #ORD-{} has been cancelled.".format(id))
+    new_order = Order(
+        product_details=item_names,
+        total_price=total,
+        user_id=current_user.id,
+        status="Placed"
+    )
+    db.session.add(new_order)
+    db.session.commit()
+    session.pop('cart', None) 
     return redirect(url_for('profile'))
 
-@app.route('/return_order/<int:id>')
+@app.route('/profile')
 @login_required
-def return_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id and order.status == "Delivered":
-        order.status = "Return Requested"
-        db.session.commit()
-        flash("Return request sent for Order #ORD-{}.".format(id))
-    return redirect(url_for('profile'))
+def profile():
+    user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
+    return render_template('profile.html', orders=user_orders)
 
 # --- AUTH ---
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=hashed_pw)
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            return redirect(url_for('login'))
-        except:
-            flash("Email already exists.")
-    return render_template('signup.html')
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         user = User.query.filter_by(email=request.form.get('email')).first()
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
-            return redirect(url_for('index'))
-        flash("Invalid credentials")
+            return redirect(url_for('admin_panel' if user.is_admin else 'index'))
     return render_template('login.html')
 
 @app.route('/logout')
@@ -174,17 +160,23 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- DATABASE RESET ---
+# --- INITIALIZE DATABASE ---
 @app.route('/init-db')
 def init_db():
     db.drop_all()
     db.create_all()
-    # Add sample products
-    p1 = Product(name="Casual Blue Shirt", price=899, description="Cotton slim fit", image="")
-    p2 = Product(name="Running Shoes", price=2499, description="Breathable mesh", image="")
-    db.session.add_all([p1, p2])
+    
+    # Create Admin
+    admin_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
+    admin = User(full_name="Admin User", email="admin@test.com", password=admin_pw, is_admin=True)
+    
+    # Create Test Product
+    p1 = Product(name="Sample Watch", price=1500, description="Elegant timepiece", image="")
+    
+    db.session.add(admin)
+    db.session.add(p1)
     db.session.commit()
-    return "Database Cleaned & Rebuilt! <a href='/'>Go Home</a>"
+    return "Database Rebuilt! Admin Login: admin@test.com | Password: admin123"
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)), debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
