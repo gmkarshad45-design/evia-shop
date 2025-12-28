@@ -26,7 +26,7 @@ class User(db.Model, UserMixin):
     full_name = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(500), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
+    is_admin = db.Column(db.Boolean, default=False)  # The column causing the error
     orders = db.relationship('Order', backref='customer', lazy=True)
 
 class Product(db.Model):
@@ -104,22 +104,24 @@ def profile():
     user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
     return render_template('profile.html', orders=user_orders)
 
+# --- DATABASE INITIALIZATION ---
 @app.route('/init-db')
 def init_db():
-    db.drop_all() # Deletes old tables without is_admin
-    db.create_all() # Creates new tables WITH is_admin
+    """Run this URL to fix the UndefinedColumn error."""
+    db.drop_all() 
+    db.create_all() 
     
-    # Create Admin User
+    # Create the Admin
     admin_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
     admin = User(full_name="Admin", email="admin@test.com", password=admin_pw, is_admin=True)
     
-    # Create Test Product
-    p1 = Product(name="Casual Shirt", price=999, description="New Arrival", image="")
+    # Create Initial Data
+    p1 = Product(name="Casual Shirt", price=999, description="Cotton Blend", image="")
     
     db.session.add(admin)
     db.session.add(p1)
     db.session.commit()
-    return "Database Fixed! Tables Recreated with is_admin column. Login with admin@test.com"
+    return "Database Rebuilt! 'is_admin' column is now active. Login: admin@test.com / admin123"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
