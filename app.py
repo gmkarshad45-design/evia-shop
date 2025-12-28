@@ -6,8 +6,11 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-# Keep this secret key fixed so sessions/carts don't reset
-app.config['SECRET_KEY'] = 'evia_clothing_final_fix_2025'
+
+# --- FIX 1: SECURE SESSION FOR CART ---
+# This must be a permanent string so the cart doesn't disappear
+app.config['SECRET_KEY'] = 'evia_clothing_2025_ultimate_secure_key_v1'
+app.config['SESSION_COOKIE_NAME'] = 'evia_session'
 
 # --- DATABASE SETUP ---
 database_url = os.environ.get("DATABASE_URL")
@@ -27,7 +30,7 @@ class User(db.Model, UserMixin):
     full_name = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(500), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
+    is_admin = db.Column(db.Boolean, default=False) # This is the missing column!
     orders = db.relationship('Order', backref='customer', lazy=True)
 
 class Product(db.Model):
@@ -49,8 +52,7 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- ROUTES ---
-
+# --- SHOP ROUTES ---
 @app.route('/')
 def index():
     products = Product.query.all()
@@ -61,15 +63,18 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# --- CART SYSTEM ---
+# --- FIX 2: CART PERSISTENCE ---
 @app.route('/add_to_cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session:
         session['cart'] = []
-    cart_list = list(session.get('cart', []))
-    cart_list.append(id)
-    session['cart'] = cart_list
-    session.modified = True  # CRITICAL: Ensures the cart is saved
+    
+    # We must copy, modify, and re-assign for Flask to save the session
+    temp_cart = list(session['cart'])
+    temp_cart.append(id)
+    session['cart'] = temp_cart
+    session.modified = True 
+    
     flash("Product added to cart!")
     return redirect(url_for('index'))
 
@@ -80,7 +85,37 @@ def cart():
     total = sum(p.price for p in products_in_cart)
     return render_template('cart.html', products=products_in_cart, total=total)
 
-# --- ADMIN PANEL (Function admin_panel uses admin.html) ---
+# --- LOGIN/SIGNUP ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user = User.query.filter_by(email=request.form.get('email')).first()
+        if user and check_password_hash(user.password, request.form.get('password')):
+            login_user(user)
+            # Redirect to admin.html if user is admin
+            if user.is_admin:
+                return redirect(url_for('admin_panel'))
+            return redirect(url_for('index'))
+        flash("Login Failed")
+    return render_template('login.html')
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
+        new_user = User(
+            full_name=request.form.get('full_name'),
+            email=request.form.get('email'),
+            password=hashed_pw,
+            is_admin=False
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        login_user(new_user)
+        return redirect(url_for('index'))
+    return render_template('signup.html')
+
+# --- ADMIN ROUTES (Uses admin.html) ---
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
 def admin_panel():
@@ -100,59 +135,25 @@ def admin_panel():
 
     orders = Order.query.order_by(Order.id.desc()).all()
     products = Product.query.all()
-    # This specifically looks for admin.html in your GitHub templates folder
     return render_template('admin.html', orders=orders, products=products)
 
-@app.route('/admin/delete/<int:id>')
-@login_required
-def delete_product(id):
-    if not current_user.is_admin:
-        return redirect(url_for('index'))
-    p = Product.query.get_or_404(id)
-    db.session.delete(p)
-    db.session.commit()
-    return redirect(url_for('admin_panel'))
-
-# --- AUTH ---
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        user = User.query.filter_by(email=request.form.get('email')).first()
-        if user and check_password_hash(user.password, request.form.get('password')):
-            login_user(user)
-            # Redirects admin to the admin function, everyone else to home
-            return redirect(url_for('admin_panel' if user.is_admin else 'index'))
-    return render_template('login.html')
-
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(
-            full_name=request.form.get('full_name'),
-            email=request.form.get('email'),
-            password=hashed_pw,
-            is_admin=False
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        login_user(new_user)
-        return redirect(url_for('index'))
-    return render_template('signup.html')
-
-# --- THE DATABASE INITIALIZER (RUN THIS FIRST) ---
+# --- FIX 3: DATABASE INITIALIZER ---
 @app.route('/init-db')
 def init_db():
     try:
+        # This deletes everything and rebuilds the columns correctly
         db.drop_all()
         db.create_all()
+        
+        # Create default admin
         admin_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
-        admin = User(full_name="Admin", email="admin@test.com", password=admin_pw, is_admin=True)
+        admin = User(full_name="Admin User", email="admin@test.com", password=admin_pw, is_admin=True)
+        
         db.session.add(admin)
         db.session.commit()
-        return "Database Fix Success! Login: admin@test.com | Password: admin123"
+        return "SUCCESS: Database Rebuilt. You can now login with admin@test.com / admin123"
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"DATABASE ERROR: {str(e)}"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
