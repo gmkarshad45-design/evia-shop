@@ -6,9 +6,9 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'evia_official_secret'
+app.config['SECRET_KEY'] = 'evia_official_2025'
 
-# Database Configuration
+# Database
 database_url = os.environ.get("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -19,36 +19,27 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# --- MODELS ---
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    full_name = db.Column(db.String(150), nullable=False)
-    email = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(500), nullable=False)
+    full_name = db.Column(db.String(150))
+    email = db.Column(db.String(150), unique=True)
+    password = db.Column(db.String(500))
     is_admin = db.Column(db.Boolean, default=False)
-    orders = db.relationship('Order', backref='customer', lazy=True)
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    image = db.Column(db.String(500))    # Main Image
-    image_2 = db.Column(db.String(500))  # Second Image (NEW)
+    image = db.Column(db.String(500))
+    image_2 = db.Column(db.String(500))
     description = db.Column(db.Text)
-
-class Order(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    product_details = db.Column(db.Text)
-    total_price = db.Column(db.Integer)
-    status = db.Column(db.String(50), default="Placed")
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    date_ordered = db.Column(db.DateTime, default=datetime.utcnow)
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 # --- ROUTES ---
+
 @app.route('/')
 def index():
     q = request.args.get('q')
@@ -60,28 +51,50 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
+# FIXED: ADD TO CART ROUTE
+@app.route('/add_to_cart/<int:id>')
+def add_to_cart(id):
+    if 'cart' not in session:
+        session['cart'] = []
+    cart = list(session['cart'])
+    cart.append(id)
+    session['cart'] = cart
+    session.modified = True
+    flash("Added to bag!")
+    return redirect(request.referrer or url_for('index'))
+
+# FIXED: CART VIEW ROUTE
+@app.route('/cart')
+def cart():
+    cart_ids = session.get('cart', [])
+    products = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
+    total = sum(p.price for p in products)
+    return render_template('cart.html', products=products, total=total)
+
+# FIXED: DELETE FROM CART ROUTE
+@app.route('/delete_cart_item/<int:id>')
+def delete_cart_item(id):
+    if 'cart' in session:
+        cart = list(session['cart'])
+        if id in cart:
+            cart.remove(id)
+            session['cart'] = cart
+            session.modified = True
+    return redirect(url_for('cart'))
+
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
 def admin_panel():
-    if not current_user.is_admin:
-        return redirect(url_for('index'))
-    
+    if not current_user.is_admin: return redirect(url_for('index'))
     if request.method == 'POST':
-        new_p = Product(
-            name=request.form.get('name'),
-            price=int(request.form.get('price')),
-            image=request.form.get('image'),
-            image_2=request.form.get('image_2'), # Added Second Image
-            description=request.form.get('description')
-        )
+        new_p = Product(name=request.form.get('name'), price=int(request.form.get('price')),
+                        image=request.form.get('image'), image_2=request.form.get('image_2'),
+                        description=request.form.get('description'))
         db.session.add(new_p)
         db.session.commit()
-        flash("Product Added Successfully!")
         return redirect(url_for('admin_panel'))
-    
     products = Product.query.all()
-    orders = Order.query.all()
-    return render_template('admin.html', products=products, orders=orders)
+    return render_template('admin.html', products=products)
 
 @app.route('/admin/delete/<int:id>')
 @login_required
@@ -92,17 +105,10 @@ def admin_delete_product(id):
     db.session.commit()
     return redirect(url_for('admin_panel'))
 
-# Add standard login/logout/cart routes here as per previous versions...
-
 @app.route('/init-db')
 def init_db():
-    db.drop_all()
     db.create_all()
-    admin = User(full_name="Admin", email="admin@test.com", 
-                 password=generate_password_hash("admin123", method='pbkdf2:sha256'), is_admin=True)
-    db.session.add(admin)
-    db.session.commit()
-    return "DB Updated. Admin: admin@test.com / admin123"
+    return "Database Check Complete"
 
 if __name__ == '__main__':
     app.run(debug=True)
