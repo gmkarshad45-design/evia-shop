@@ -6,7 +6,8 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_pro_ultra_2025_ultimate')
+# Keep this secret key fixed so sessions/carts don't reset
+app.config['SECRET_KEY'] = 'evia_clothing_final_fix_2025'
 
 # --- DATABASE SETUP ---
 database_url = os.environ.get("DATABASE_URL")
@@ -35,7 +36,6 @@ class Product(db.Model):
     price = db.Column(db.Integer, nullable=False)
     image = db.Column(db.String(500)) 
     description = db.Column(db.Text)    
-    stock = db.Column(db.Integer, default=10)
 
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -61,28 +61,17 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# --- CART & BUY NOW LOGIC ---
+# --- CART SYSTEM ---
 @app.route('/add_to_cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session:
         session['cart'] = []
-    cart_list = list(session['cart'])
+    cart_list = list(session.get('cart', []))
     cart_list.append(id)
     session['cart'] = cart_list
-    session.modified = True 
-    flash("Added to cart!")
+    session.modified = True  # CRITICAL: Ensures the cart is saved
+    flash("Product added to cart!")
     return redirect(url_for('index'))
-
-# FIX: Added the missing buy_now endpoint
-@app.route('/buy_now/<int:id>')
-def buy_now(id):
-    if 'cart' not in session:
-        session['cart'] = []
-    cart_list = list(session['cart'])
-    cart_list.append(id)
-    session['cart'] = cart_list
-    session.modified = True
-    return redirect(url_for('cart'))
 
 @app.route('/cart')
 def cart():
@@ -91,51 +80,67 @@ def cart():
     total = sum(p.price for p in products_in_cart)
     return render_template('cart.html', products=products_in_cart, total=total)
 
-# --- ADMIN ---
-@app.route('/admin')
+# --- ADMIN PANEL (Function admin_panel uses admin.html) ---
+@app.route('/admin', methods=['GET', 'POST'])
 @login_required
 def admin_panel():
     if not current_user.is_admin:
         return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        new_p = Product(
+            name=request.form.get('name'),
+            price=int(request.form.get('price')),
+            description=request.form.get('description'),
+            image=request.form.get('image')
+        )
+        db.session.add(new_p)
+        db.session.commit()
+        return redirect(url_for('admin_panel'))
+
     orders = Order.query.order_by(Order.id.desc()).all()
     products = Product.query.all()
+    # This specifically looks for admin.html in your GitHub templates folder
     return render_template('admin.html', orders=orders, products=products)
 
-# --- AUTH & CHECKOUT ---
+@app.route('/admin/delete/<int:id>')
+@login_required
+def delete_product(id):
+    if not current_user.is_admin:
+        return redirect(url_for('index'))
+    p = Product.query.get_or_404(id)
+    db.session.delete(p)
+    db.session.commit()
+    return redirect(url_for('admin_panel'))
+
+# --- AUTH ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         user = User.query.filter_by(email=request.form.get('email')).first()
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
+            # Redirects admin to the admin function, everyone else to home
             return redirect(url_for('admin_panel' if user.is_admin else 'index'))
     return render_template('login.html')
 
-@app.route('/checkout', methods=['POST', 'GET'])
-@login_required
-def checkout():
-    cart_ids = session.get('cart', [])
-    if not cart_ids: return redirect(url_for('index'))
-    
-    items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
-    new_order = Order(
-        product_details=", ".join([i.name for i in items]),
-        total_price=sum(i.price for i in items),
-        user_id=current_user.id,
-        status="Placed"
-    )
-    db.session.add(new_order)
-    db.session.commit()
-    session.pop('cart', None) 
-    return redirect(url_for('profile'))
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
+        new_user = User(
+            full_name=request.form.get('full_name'),
+            email=request.form.get('email'),
+            password=hashed_pw,
+            is_admin=False
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        login_user(new_user)
+        return redirect(url_for('index'))
+    return render_template('signup.html')
 
-@app.route('/profile')
-@login_required
-def profile():
-    user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
-    return render_template('profile.html', orders=user_orders)
-
-# --- DATABASE REBUILD ---
+# --- THE DATABASE INITIALIZER (RUN THIS FIRST) ---
 @app.route('/init-db')
 def init_db():
     try:
@@ -143,13 +148,11 @@ def init_db():
         db.create_all()
         admin_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
         admin = User(full_name="Admin", email="admin@test.com", password=admin_pw, is_admin=True)
-        p1 = Product(name="Sample Item", price=999, description="Added via init")
         db.session.add(admin)
-        db.session.add(p1)
         db.session.commit()
-        return "SUCCESS: Database Rebuilt. You can now use 'Buy Now' and Admin features."
+        return "Database Fix Success! Login: admin@test.com | Password: admin123"
     except Exception as e:
-        return f"ERROR: {str(e)}"
+        return f"Error: {str(e)}"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
