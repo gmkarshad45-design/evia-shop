@@ -18,12 +18,11 @@
             background: var(--evia-gray); 
             color: var(--evia-black); 
             margin: 0;
-            padding-bottom: calc(140px + var(--safe-area-bottom)); /* Dynamic padding for iPhone home bar */
+            padding-bottom: calc(140px + var(--safe-area-bottom)); 
             -webkit-font-smoothing: antialiased;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* High-End Glassmorphism Header */
         .cart-header { 
             background: rgba(255, 255, 255, 0.85); 
             backdrop-filter: blur(20px);
@@ -46,7 +45,6 @@
             text-transform: uppercase;
         }
 
-        /* Cart Items Layout */
         .cart-container { padding: 16px; }
         
         .cart-item { 
@@ -73,7 +71,6 @@
         .item-name { font-weight: 600; font-size: 14px; color: #000; margin-bottom: 2px; }
         .item-price { font-weight: 700; font-size: 16px; color: #000; }
         
-        /* Remove Button Style */
         .remove-btn {
             position: absolute;
             top: 0;
@@ -90,7 +87,6 @@
             font-size: 12px;
         }
 
-        /* Fixed Bottom Checkout Section */
         .checkout-footer { 
             position: fixed; 
             bottom: 0; 
@@ -122,7 +118,6 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Tap animation for Mobile */
         .btn-checkout:active { 
             transform: scale(0.96); 
             background: #333; 
@@ -145,15 +140,15 @@
     </div>
 
     <div class="cart-container">
-        {% if items %}
-            {% for item in items %}
+        {% if products %}
+            {% for item in products %}
             <div class="cart-item">
                 <img src="{{ item.image }}" alt="{{ item.name }}">
                 <div class="item-details">
                     <div class="item-name">{{ item.name }}</div>
                     <div class="item-price">₹{{ item.price }}</div>
                     
-                    <a href="{{ url_for('remove_from_cart', id=item.id) }}" class="remove-btn">
+                    <a href="{{ url_for('delete_product', id=item.id) }}" class="remove-btn">
                         <i class="fa fa-trash"></i>
                     </a>
                     
@@ -173,13 +168,13 @@
         {% endif %}
     </div>
 
-    {% if items %}
+    {% if products %}
     <div class="checkout-footer">
         <div class="summary-row">
-            <span class="summary-label">Bag Total ({{ items|length }} items)</span>
+            <span class="summary-label">Bag Total ({{ products|length }} items)</span>
             <span class="summary-value">₹{{ total }}</span>
         </div>
-        <a href="{{ url_for('checkout_cart') }}" class="btn-checkout">PROCEED TO CHECKOUT</a>
+        <a href="{{ url_for('admin_panel') }}" class="btn-checkout">PROCEED TO CHECKOUT</a>
     </div>
     {% endif %}
 
