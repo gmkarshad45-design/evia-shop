@@ -6,7 +6,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'evia_production_secret_9988'
+app.config['SECRET_KEY'] = 'evia_official_premium_2025'
 
 # --- DATABASE SETUP ---
 database_url = os.environ.get("DATABASE_URL")
@@ -32,7 +32,6 @@ class Product(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     image = db.Column(db.String(500))
-    image_2 = db.Column(db.String(500))
     description = db.Column(db.Text)
 
 class Order(db.Model):
@@ -47,19 +46,48 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- HOME & PRODUCT ROUTES ---
+# --- ROUTES ---
+
 @app.route('/')
 def index():
-    q = request.args.get('q')
-    products = Product.query.filter(Product.name.contains(q)).all() if q else Product.query.all()
+    products = Product.query.all()
     return render_template('index.html', products=products)
 
-@app.route('/product/<int:id>')
-def product_detail(id):
-    product = Product.query.get_or_404(id)
-    return render_template('product_detail.html', product=product)
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        # Fix: Check for both possible names from your HTML files
+        name = request.form.get('name') or request.form.get('full_name')
+        email = request.form.get('email')
+        password = request.form.get('password')
 
-# --- CART & CHECKOUT ---
+        if User.query.filter_by(email=email).first():
+            flash("Email already registered.")
+            return redirect(url_for('signup'))
+
+        user = User(
+            full_name=name, 
+            email=email, 
+            password=generate_password_hash(password, method='pbkdf2:sha256')
+        )
+        db.session.add(user)
+        db.session.commit()
+        login_user(user)
+        return redirect(url_for('index'))
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        user = User.query.filter_by(email=email).first()
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            return redirect(url_for('admin_panel') if user.is_admin else url_for('index'))
+        flash("Invalid credentials.")
+    return render_template('login.html')
+
 @app.route('/cart')
 def cart():
     cart_ids = session.get('cart', [])
@@ -69,13 +97,13 @@ def cart():
 
 @app.route('/add_to_cart/<int:id>')
 def add_to_cart(id):
-    if 'cart' not in session: session['cart'] = []
+    if 'cart' not in session:
+        session['cart'] = []
     cart_list = list(session['cart'])
     cart_list.append(id)
     session['cart'] = cart_list
     session.modified = True
-    flash("Item added to bag!")
-    return redirect(request.referrer or url_for('index'))
+    return redirect(url_for('cart'))
 
 @app.route('/delete_cart_item/<int:id>')
 def delete_cart_item(id):
@@ -91,85 +119,71 @@ def delete_cart_item(id):
 @login_required
 def checkout():
     cart_ids = session.get('cart', [])
-    if not cart_ids: return redirect(url_for('index'))
+    if not cart_ids:
+        return redirect(url_for('index'))
     
     products = [Product.query.get(pid) for pid in cart_ids if Product.query.get(pid)]
     total = sum(p.price for p in products)
 
     if request.method == 'POST':
+        # Create the order record
         details = ", ".join([p.name for p in products])
-        order = Order(product_details=details, total_price=total, user_id=current_user.id)
-        db.session.add(order)
+        new_order = Order(
+            product_details=details, 
+            total_price=total, 
+            user_id=current_user.id
+        )
+        db.session.add(new_order)
         db.session.commit()
+        
+        # Clear cart and send to profile
         session.pop('cart', None)
+        flash("Order placed successfully!")
         return redirect(url_for('profile'))
         
     return render_template('checkout.html', products=products, total=total)
 
-# --- USER AUTH & PROFILE ---
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        hashed_pw = generate_password_hash(request.form.get('name'), method='pbkdf2:sha256')
-        user = User(full_name=request.form.get('name'), email=request.form.get('email'), password=hashed_pw)
-        db.session.add(user)
-        db.session.commit()
-        login_user(user)
-        return redirect(url_for('index'))
-    return render_template('signup.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        user = User.query.filter_by(email=request.form.get('email')).first()
-        if user and check_password_hash(user.password, request.form.get('password')):
-            login_user(user)
-            return redirect(url_for('admin_panel' if user.is_admin else 'index'))
-        flash("Invalid Credentials")
-    return render_template('login.html')
-
 @app.route('/profile')
 @login_required
 def profile():
-    orders = Order.query.filter_by(user_id=current_user.id).all()
+    orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.date_ordered.desc()).all()
     return render_template('profile.html', orders=orders)
+
+@app.route('/admin', methods=['GET', 'POST'])
+@login_required
+def admin_panel():
+    if not current_user.is_admin:
+        return render_template('admin_lock.html')
+    if request.method == 'POST':
+        p = Product(
+            name=request.form.get('name'), 
+            price=int(request.form.get('price')),
+            image=request.form.get('image'), 
+            description=request.form.get('description')
+        )
+        db.session.add(p)
+        db.session.commit()
+        flash("Product added!")
+    return render_template('admin.html', products=Product.query.all())
+
+@app.route('/init-db')
+def init_db():
+    db.create_all()
+    if not User.query.filter_by(email="admin@test.com").first():
+        admin = User(
+            full_name="Admin", 
+            email="admin@test.com", 
+            password=generate_password_hash("admin123", method='pbkdf2:sha256'), 
+            is_admin=True
+        )
+        db.session.add(admin)
+        db.session.commit()
+    return "Success: Database and Admin account (admin@test.com) are ready."
 
 @app.route('/logout')
 def logout():
     logout_user()
     return redirect(url_for('index'))
-
-# --- ADMIN PANEL ---
-@app.route('/admin', methods=['GET', 'POST'])
-@login_required
-def admin_panel():
-    if not current_user.is_admin: return render_template('admin_lock.html')
-    if request.method == 'POST':
-        p = Product(name=request.form.get('name'), price=int(request.form.get('price')),
-                    image=request.form.get('image'), description=request.form.get('description'))
-        db.session.add(p)
-        db.session.commit()
-    return render_template('admin.html', products=Product.query.all())
-
-@app.route('/admin/delete/<int:id>')
-@login_required
-def admin_delete(id):
-    if current_user.is_admin:
-        p = Product.query.get(id)
-        db.session.delete(p)
-        db.session.commit()
-    return redirect(url_for('admin_panel'))
-
-# --- DB INIT ---
-@app.route('/init-db')
-def init_db():
-    db.create_all()
-    if not User.query.filter_by(email="admin@evia.com").first():
-        admin = User(full_name="Admin", email="admin@evia.com", 
-                     password=generate_password_hash("admin123", method='pbkdf2:sha256'), is_admin=True)
-        db.session.add(admin)
-        db.session.commit()
-    return "Database Ready"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
