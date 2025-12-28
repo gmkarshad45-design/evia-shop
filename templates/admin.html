@@ -3,52 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin | EVIA</title>
+    <title>Admin Dashboard | EVIA</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .sidebar { background: #000; color: white; min-height: 100vh; padding: 20px; width: 250px; position: fixed; }
-        .content { margin-left: 250px; padding: 30px; }
-        .order-card { background: white; border-radius: 12px; border: 1px solid #eee; margin-bottom: 15px; padding: 15px; }
-        @media (max-width: 768px) { .sidebar { display: none; } .content { margin-left: 0; } }
+        :root { --sidebar-width: 260px; }
+        body { background: #f4f7f6; font-family: 'Inter', sans-serif; }
+        
+        /* Sidebar */
+        .sidebar { background: #111; color: white; min-height: 100vh; width: var(--sidebar-width); position: fixed; transition: 0.3s; z-index: 1000; }
+        .sidebar a { color: #aaa; text-decoration: none; padding: 15px 25px; display: block; transition: 0.3s; }
+        .sidebar a:hover, .sidebar a.active { background: #222; color: #fff; }
+        
+        /* Content Area */
+        .main-content { margin-left: var(--sidebar-width); padding: 40px; transition: 0.3s; }
+        
+        .card { border: none; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .order-card { border-left: 5px solid #fb641b; }
+        .badge-status { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 6px 12px; border-radius: 50px; }
+
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); width: 100%; height: auto; min-height: auto; position: relative; }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { margin-left: 0; padding: 20px; }
+        }
     </style>
 </head>
-<body class="bg-light">
+<body>
 
 <div class="sidebar">
-    <h3 class="fw-bold mb-4">EVIA ADMIN</h3>
-    <a href="/" class="text-white d-block mb-3 text-decoration-none">View Shop</a>
-    <a href="/logout" class="text-danger d-block text-decoration-none">Logout</a>
+    <div class="p-4 border-bottom border-secondary mb-3 text-center">
+        <h4 class="fw-bold m-0 text-white">EVIA ADMIN</h4>
+    </div>
+    <a href="/" class="active"><i class="fa fa-shopping-cart me-2"></i> View Store</a>
+    <a href="#orders"><i class="fa fa-box me-2"></i> Orders</a>
+    <a href="#add-product"><i class="fa fa-plus-circle me-2"></i> Add Product</a>
+    <a href="/logout" class="text-danger mt-5"><i class="fa fa-sign-out-alt me-2"></i> Logout</a>
 </div>
 
-<div class="content">
-    <h2 class="fw-bold mb-4">Manage Orders</h2>
+<div class="main-content">
+    
+    <div id="add-product" class="card p-4 mb-5">
+        <h4 class="fw-bold mb-4">Add New Product</h4>
+        <form action="/admin" method="POST">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="small fw-bold text-muted">PRODUCT NAME</label>
+                    <input type="text" name="name" class="form-control" required placeholder="Ex: Black Oversized Tee">
+                </div>
+                <div class="col-md-3">
+                    <label class="small fw-bold text-muted">PRICE (₹)</label>
+                    <input type="number" name="price" class="form-control" required placeholder="999">
+                </div>
+                <div class="col-md-12">
+                    <label class="small fw-bold text-muted">MAIN IMAGE URL</label>
+                    <input type="text" name="image" class="form-control" required placeholder="Paste first image link">
+                </div>
+                <div class="col-md-12">
+                    <label class="small fw-bold text-muted">SECOND IMAGE URL (SCROLL)</label>
+                    <input type="text" name="image_2" class="form-control" placeholder="Paste second image link">
+                </div>
+                <div class="col-md-12">
+                    <label class="small fw-bold text-muted">DESCRIPTION</label>
+                    <textarea name="description" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-dark mt-4 px-5 fw-bold">UPLOAD PRODUCT</button>
+        </form>
+    </div>
+
+    <h2 id="orders" class="fw-bold mb-4">Customer Orders</h2>
     
     {% for o in orders %}
-    <div class="order-card shadow-sm">
-        <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
-            <span class="fw-bold">Order #{{ o.id }}</span>
-            <span class="badge bg-warning text-dark">{{ o.status }}</span>
+    <div class="card order-card p-4">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+            <div>
+                <span class="text-muted small fw-bold">ORDER #{{ o.id }}</span>
+                <p class="m-0 small">{{ o.date_ordered.strftime('%d %b, %Y %I:%M %p') }}</p>
+            </div>
+            <span class="badge badge-status {% if o.status == 'Delivered' %}bg-success{% elif o.status == 'Cancelled' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                {{ o.status }}
+            </span>
         </div>
+
         <div class="row">
-            <div class="col-md-4">
-                <small class="text-muted d-block">CUSTOMER</small>
+            <div class="col-md-4 mb-3 mb-md-0">
+                <label class="small text-muted d-block fw-bold mb-1">CUSTOMER INFO</label>
                 <div class="fw-bold">{{ o.customer.full_name }}</div>
-                <a href="https://wa.me/91{{ o.whatsapp }}" class="btn btn-sm btn-success mt-2"><i class="fab fa-whatsapp"></i> Chat</a>
+                <a href="https://wa.me/91{{ o.whatsapp }}" target="_blank" class="btn btn-sm btn-success mt-2 rounded-pill px-3">
+                    <i class="fab fa-whatsapp me-1"></i> Chat WhatsApp
+                </a>
             </div>
-            <div class="col-md-4">
-                <small class="text-muted d-block">ADDRESS</small>
-                <div class="small">{{ o.address }}</div>
+            
+            <div class="col-md-4 mb-3 mb-md-0 border-start ps-4">
+                <label class="small text-muted d-block fw-bold mb-1">SHIPPING ADDRESS</label>
+                <div class="small lh-base">{{ o.address }}</div>
             </div>
-            <div class="col-md-4">
-                <small class="text-muted d-block">ITEMS</small>
-                <div class="small fw-bold text-primary">{{ o.product_details }}</div>
-                <div class="mt-3">
-                    <a href="{{ url_for('update_order_status', id=o.id, st='Shipped') }}" class="btn btn-outline-dark btn-sm">Ship</a>
-                    <a href="{{ url_for('update_order_status', id=o.id, st='Delivered') }}" class="btn btn-dark btn-sm">Deliver</a>
+
+            <div class="col-md-4 border-start ps-4">
+                <label class="small text-muted d-block fw-bold mb-1">ORDERED ITEMS</label>
+                <div class="small fw-bold text-dark">{{ o.product_details }}</div>
+                <div class="mt-2 text-primary fw-bold">Total: ₹{{ o.total_price }}</div>
+                
+                <div class="mt-3 pt-3 border-top d-flex gap-2">
+                    <a href="{{ url_for('update_status', id=o.id, st='Shipped') }}" class="btn btn-outline-dark btn-sm rounded-pill">Mark Shipped</a>
+                    <a href="{{ url_for('update_status', id=o.id, st='Delivered') }}" class="btn btn-dark btn-sm rounded-pill">Mark Delivered</a>
                 </div>
             </div>
         </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No orders placed yet.</h5>
     </div>
     {% endfor %}
 </div>
