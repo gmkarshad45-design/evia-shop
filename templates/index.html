@@ -54,10 +54,12 @@
         <div class="collapse navbar-collapse" id="mainMenu">
             <div class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
-                    <a class="nav-link nav-link-menu" href="#">My Orders</a>
+                    <a class="nav-link nav-link-menu" href="{{ url_for('profile') }}">My Orders</a>
+                    
                     {% if current_user.is_admin %}
                         <a class="nav-link nav-link-menu text-info" href="/admin">Admin Panel</a>
                     {% endif %}
+                    
                     <div class="text-center">
                         <a class="btn-exit-menu" href="/logout">LOGOUT</a>
                     </div>
