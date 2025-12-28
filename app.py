@@ -8,9 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
-app.config['SECRET_KEY'] = 'evia_clothing_2025_ultimate_secure_key_v1'
-app.config['SESSION_COOKIE_NAME'] = 'evia_session'
-
+app.config['SECRET_KEY'] = 'evia_clothing_2025_secure_key'
 database_url = os.environ.get("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -36,7 +34,6 @@ class Product(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     image = db.Column(db.String(500)) 
-    image_2 = db.Column(db.String(500)) 
     description = db.Column(db.Text)    
 
 class Order(db.Model):
@@ -54,7 +51,11 @@ def load_user(user_id):
 # --- SHOP ROUTES ---
 @app.route('/')
 def index():
-    products = Product.query.all()
+    query = request.args.get('q')
+    if query:
+        products = Product.query.filter(Product.name.contains(query)).all()
+    else:
+        products = Product.query.all()
     return render_template('index.html', products=products)
 
 @app.route('/product/<int:id>')
@@ -67,15 +68,10 @@ def product_detail(id):
 def add_to_cart(id):
     if 'cart' not in session:
         session['cart'] = []
-    
     temp_cart = list(session['cart'])
     temp_cart.append(id)
     session['cart'] = temp_cart
     session.modified = True 
-    
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify(status="success", cart_count=len(session['cart']))
-    
     flash("Added to bag!")
     return redirect(request.referrer or url_for('index'))
 
@@ -86,16 +82,14 @@ def cart():
     total = sum(p.price for p in products_in_cart)
     return render_template('cart.html', products=products_in_cart, total=total)
 
-# FIX FOR THE CART ERROR: Added delete_product route
-@app.route('/delete_product/<int:id>')
-def delete_product(id):
+@app.route('/delete_cart_item/<int:id>')
+def delete_cart_item(id):
     if 'cart' in session:
         temp_cart = list(session['cart'])
         if id in temp_cart:
             temp_cart.remove(id)
             session['cart'] = temp_cart
             session.modified = True
-            flash("Removed from bag.")
     return redirect(url_for('cart'))
 
 @app.route('/checkout', methods=['POST'])
@@ -103,23 +97,16 @@ def delete_product(id):
 def checkout():
     cart_ids = session.get('cart', [])
     if not cart_ids:
-        flash("Bag is empty!")
         return redirect(url_for('index'))
     
     products_in_cart = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
-    item_names = ", ".join([p.name for p in products_in_cart])
+    details = ", ".join([p.name for p in products_in_cart])
     total = sum(p.price for p in products_in_cart)
     
-    new_order = Order(
-        product_details=item_names,
-        total_price=total,
-        user_id=current_user.id,
-        status="Placed"
-    )
+    new_order = Order(product_details=details, total_price=total, user_id=current_user.id)
     db.session.add(new_order)
     db.session.commit()
-    
-    session.pop('cart', None) # Empty the cart after order
+    session.pop('cart', None)
     flash("Order placed successfully!")
     return redirect(url_for('profile'))
 
@@ -131,24 +118,14 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('admin_panel' if user.is_admin else 'index'))
-        flash("Invalid login credentials.")
+        flash("Login failed. Check credentials.")
     return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        email = request.form.get('email')
-        if User.query.filter_by(email=email).first():
-            flash("Email already exists.")
-            return redirect(url_for('signup'))
-        
         hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(
-            full_name=request.form.get('full_name'),
-            email=email,
-            password=hashed_pw,
-            is_admin=False
-        )
+        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=hashed_pw)
         db.session.add(new_user)
         db.session.commit()
         login_user(new_user)
@@ -166,16 +143,6 @@ def profile():
     orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
     return render_template('profile.html', orders=orders)
 
-@app.route('/cancel_order/<int:id>')
-@login_required
-def cancel_order(id):
-    order = Order.query.get_or_404(id)
-    if order.user_id == current_user.id:
-        order.status = "Cancelled"
-        db.session.commit()
-        flash("Order cancelled.")
-    return redirect(url_for('profile'))
-
 # --- ADMIN ROUTES ---
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
@@ -184,31 +151,53 @@ def admin_panel():
         return redirect(url_for('index'))
     
     if request.method == 'POST':
+        # Matching names to your admin.html form
         new_p = Product(
             name=request.form.get('name'),
             price=int(request.form.get('price')),
-            description=request.form.get('description'),
             image=request.form.get('image'),
-            image_2=request.form.get('image_2')
+            description=request.form.get('description')
         )
         db.session.add(new_p)
         db.session.commit()
-        flash("Product added successfully!")
+        flash("Product added!")
         return redirect(url_for('admin_panel'))
 
-    orders = Order.query.order_by(Order.id.desc()).all()
     products = Product.query.all()
-    return render_template('admin.html', orders=orders, products=products)
+    orders = Order.query.all()
+    return render_template('admin.html', products=products, orders=orders)
+
+@app.route('/admin/delete/<int:id>')
+@login_required
+def admin_delete_product(id):
+    if not current_user.is_admin:
+        return redirect(url_for('index'))
+    product = Product.query.get_or_404(id)
+    db.session.delete(product)
+    db.session.commit()
+    flash("Product deleted.")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/status/<int:id>/<string:new_status>')
+@login_required
+def update_order_status(id, new_status):
+    if not current_user.is_admin:
+        return redirect(url_for('index'))
+    order = Order.query.get_or_404(id)
+    order.status = new_status
+    db.session.commit()
+    flash(f"Order #{id} updated to {new_status}")
+    return redirect(url_for('admin_panel'))
 
 @app.route('/init-db')
 def init_db():
     db.drop_all()
     db.create_all()
     admin_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
-    admin = User(full_name="Admin User", email="admin@test.com", password=admin_pw, is_admin=True)
+    admin = User(full_name="Admin", email="admin@test.com", password=admin_pw, is_admin=True)
     db.session.add(admin)
     db.session.commit()
-    return "SUCCESS: Database Rebuilt. Login: admin@test.com / admin123"
+    return "Database Rebuilt. Login: admin@test.com / admin123"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
