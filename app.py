@@ -1,18 +1,16 @@
 import os
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
-# --- FIX 1: SECURE SESSION FOR CART ---
-# This must be a permanent string so the cart doesn't disappear
+# --- CONFIGURATION ---
 app.config['SECRET_KEY'] = 'evia_clothing_2025_ultimate_secure_key_v1'
 app.config['SESSION_COOKIE_NAME'] = 'evia_session'
 
-# --- DATABASE SETUP ---
 database_url = os.environ.get("DATABASE_URL")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -30,7 +28,7 @@ class User(db.Model, UserMixin):
     full_name = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(500), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False) # This is the missing column!
+    is_admin = db.Column(db.Boolean, default=False)
     orders = db.relationship('Order', backref='customer', lazy=True)
 
 class Product(db.Model):
@@ -38,6 +36,7 @@ class Product(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     image = db.Column(db.String(500)) 
+    image_2 = db.Column(db.String(500)) # Added for the product detail slider
     description = db.Column(db.Text)    
 
 class Order(db.Model):
@@ -63,20 +62,23 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# --- FIX 2: CART PERSISTENCE ---
+# --- CART LOGIC (With AJAX Support) ---
 @app.route('/add_to_cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session:
         session['cart'] = []
     
-    # We must copy, modify, and re-assign for Flask to save the session
     temp_cart = list(session['cart'])
     temp_cart.append(id)
     session['cart'] = temp_cart
     session.modified = True 
     
-    flash("Product added to cart!")
-    return redirect(url_for('index'))
+    # Check if request is AJAX (for the Toast notification)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(status="success", cart_count=len(session['cart']))
+    
+    flash("Product added to bag!")
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/cart')
 def cart():
@@ -85,27 +87,35 @@ def cart():
     total = sum(p.price for p in products_in_cart)
     return render_template('cart.html', products=products_in_cart, total=total)
 
-# --- LOGIN/SIGNUP ---
+@app.route('/clear_cart')
+def clear_cart():
+    session.pop('cart', None)
+    return redirect(url_for('cart'))
+
+# --- AUTH ROUTES ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         user = User.query.filter_by(email=request.form.get('email')).first()
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
-            # Redirect to admin.html if user is admin
-            if user.is_admin:
-                return redirect(url_for('admin_panel'))
-            return redirect(url_for('index'))
-        flash("Login Failed")
+            return redirect(url_for('admin_panel' if user.is_admin else 'index'))
+        flash("Invalid email or password.")
     return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
+        email = request.form.get('email')
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash("Email already registered.")
+            return redirect(url_for('signup'))
+            
         hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
         new_user = User(
             full_name=request.form.get('full_name'),
-            email=request.form.get('email'),
+            email=email,
             password=hashed_pw,
             is_admin=False
         )
@@ -115,7 +125,30 @@ def signup():
         return redirect(url_for('index'))
     return render_template('signup.html')
 
-# --- ADMIN ROUTES (Uses admin.html) ---
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+# --- USER PROFILE & ORDERS ---
+@app.route('/profile')
+@login_required
+def profile():
+    user_orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
+    return render_template('profile.html', orders=user_orders)
+
+@app.route('/cancel_order/<int:id>')
+@login_required
+def cancel_order(id):
+    order = Order.query.get_or_404(id)
+    if order.user_id == current_user.id and order.status == "Placed":
+        order.status = "Cancelled"
+        db.session.commit()
+        flash("Order cancelled.")
+    return redirect(url_for('profile'))
+
+# --- ADMIN ROUTES ---
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
 def admin_panel():
@@ -127,7 +160,8 @@ def admin_panel():
             name=request.form.get('name'),
             price=int(request.form.get('price')),
             description=request.form.get('description'),
-            image=request.form.get('image')
+            image=request.form.get('image'),
+            image_2=request.form.get('image_2')
         )
         db.session.add(new_p)
         db.session.commit()
@@ -137,23 +171,22 @@ def admin_panel():
     products = Product.query.all()
     return render_template('admin.html', orders=orders, products=products)
 
-# --- FIX 3: DATABASE INITIALIZER ---
+# --- DB INITIALIZER ---
 @app.route('/init-db')
 def init_db():
     try:
-        # This deletes everything and rebuilds the columns correctly
         db.drop_all()
         db.create_all()
-        
-        # Create default admin
         admin_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
         admin = User(full_name="Admin User", email="admin@test.com", password=admin_pw, is_admin=True)
-        
         db.session.add(admin)
         db.session.commit()
-        return "SUCCESS: Database Rebuilt. You can now login with admin@test.com / admin123"
+        return "SUCCESS: Database Rebuilt. Login: admin@test.com / admin123"
     except Exception as e:
         return f"DATABASE ERROR: {str(e)}"
 
 if __name__ == '__main__':
+    # Context setup for Render/Local
+    with app.app_context():
+        db.create_all()
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
