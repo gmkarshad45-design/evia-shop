@@ -7,32 +7,27 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #f1f3f6; font-family: 'Inter', sans-serif; overflow-x: hidden; }
-        
+        body { background-color: #f1f3f6; font-family: 'Inter', sans-serif; }
         .sidebar-mobile { background: #111; padding: 10px 0; position: sticky; top: 0; z-index: 1000; }
-        .sidebar-nav { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 0 15px; -webkit-overflow-scrolling: touch; }
+        .sidebar-nav { display: flex; overflow-x: auto; padding: 0 15px; gap: 10px; }
         .sidebar-nav::-webkit-scrollbar { display: none; }
-        .sidebar-nav a { color: #fff; text-decoration: none; white-space: nowrap; padding: 8px 15px; margin-right: 10px; border-radius: 8px; font-size: 13px; border: 1px solid #333; flex: 0 0 auto; }
-        .sidebar-nav a.active { background: #fb641b; color: white; border-color: #fb641b; }
+        .sidebar-nav a { color: #fff; text-decoration: none; white-space: nowrap; padding: 8px 15px; border-radius: 8px; font-size: 13px; border: 1px solid #333; }
+        .sidebar-nav a.active { background: #fb641b; border-color: #fb641b; }
 
-        .order-card { background: white; border-radius: 12px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 15px; padding: 15px; }
-        .status-dot { height: 8px; width: 8px; background-color: #26a541; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .order-card { background: white; border-radius: 12px; margin-bottom: 15px; padding: 15px; border: 1px solid #e0e0e0; }
         
-        /* TRACKER STYLING */
+        /* TRACKER */
         .track-container { display: flex; justify-content: space-between; position: relative; margin: 25px 0 15px 0; }
-        .track-line { position: absolute; top: 12px; left: 5%; width: 90%; height: 2px; background: #e0e0e0; z-index: 1; }
+        .track-line { position: absolute; top: 12px; left: 10%; width: 80%; height: 2px; background: #e0e0e0; z-index: 1; }
         .track-step { position: relative; z-index: 2; text-align: center; width: 25%; }
-        .track-icon { width: 25px; height: 25px; background: #fff; border: 2px solid #e0e0e0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 5px auto; font-size: 12px; color: #ccc; transition: 0.3s; }
-        .track-text { font-size: 9px; font-weight: bold; color: #999; text-transform: uppercase; }
+        .track-icon { width: 25px; height: 25px; background: #fff; border: 2px solid #e0e0e0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 5px auto; font-size: 10px; color: #ccc; }
+        .track-text { font-size: 8px; font-weight: 800; color: #999; text-transform: uppercase; }
         
-        .track-step.active .track-icon { background: #26a541; border-color: #26a541; color: white; box-shadow: 0 0 8px rgba(38, 165, 65, 0.4); }
+        .track-step.active .track-icon { background: #26a541; border-color: #26a541; color: white; }
         .track-step.active .track-text { color: #26a541; }
         
-        @media (min-width: 768px) {
-            .sidebar-mobile { display: none; }
-            .desktop-sidebar { position: sticky; top: 20px; }
-            .track-text { font-size: 11px; }
-        }
+        .status-badge-cancelled { color: #dc3545; font-size: 12px; font-weight: 800; }
+        .status-badge-return { color: #6f42c1; font-size: 12px; font-weight: 800; }
     </style>
 </head>
 <body>
@@ -40,104 +35,84 @@
 <div class="sidebar-mobile">
     <div class="sidebar-nav">
         <a href="/"><i class="fa fa-home"></i> Home</a>
-        <a href="/profile" class="active"><i class="fa fa-shopping-bag"></i> My Orders</a>
-        <a href="/logout" class="text-danger"><i class="fa fa-sign-out-alt"></i> Logout</a>
+        <a href="/profile" class="active"><i class="fa fa-shopping-bag"></i> Orders</a>
+        <a href="/logout" class="text-danger">Logout</a>
     </div>
 </div>
 
-<div class="container mt-md-4 main-content">
-    <div class="row">
-        <div class="col-md-3 desktop-sidebar d-none d-md-block">
-            <div class="list-group shadow-sm border-0">
-                <div class="list-group-item bg-dark text-white fw-bold py-3">
-                    <i class="fa fa-user-circle me-2"></i> {{ current_user.full_name or 'User' }}
-                </div>
-                <a href="/profile" class="list-group-item list-group-item-action active">My Orders</a>
-                <a href="/" class="list-group-item list-group-item-action">Continue Shopping</a>
-                <a href="/logout" class="list-group-item list-group-item-action text-danger">Logout</a>
-            </div>
-        </div>
+<div class="container mt-3">
+    <h4 class="fw-bold mb-3 px-1">My Orders</h4>
 
-        <div class="col-md-9">
-            <div class="d-flex justify-content-between align-items-center mb-3 px-2">
-                <h4 class="fw-bold m-0">My Orders</h4>
-                <span class="badge bg-white text-dark border">{{ orders|length }} Orders</span>
-            </div>
-
-            {% if orders %}
-                {% for order in orders %}
-                <div class="order-card mx-2 mx-md-0">
-                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                        <span class="text-muted small fw-bold">#ORD-{{ order.id }}</span>
-                        <div>
-                            {% if order.status == "Cancelled" %}
-                                <span class="small fw-bold text-danger"><i class="fa fa-times-circle"></i> Cancelled</span>
-                            {% else %}
-                                <span class="status-dot"></span>
-                                <span class="small fw-bold text-success">{{ order.status }}</span>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    {% if order.status != "Cancelled" %}
-                    <div class="track-container">
-                        <div class="track-line"></div>
-                        <div class="track-step active">
-                            <div class="track-icon"><i class="fa fa-check"></i></div>
-                            <div class="track-text">Placed</div>
-                        </div>
-                        <div class="track-step {% if order.status in ['Shipped', 'Out for Delivery', 'Delivered'] %}active{% endif %}">
-                            <div class="track-icon"><i class="fa fa-truck"></i></div>
-                            <div class="track-text">Shipped</div>
-                        </div>
-                        <div class="track-step {% if order.status in ['Out for Delivery', 'Delivered'] %}active{% endif %}">
-                            <div class="track-icon"><i class="fa fa-motorcycle"></i></div>
-                            <div class="track-text">Out for Delivery</div>
-                        </div>
-                        <div class="track-step {% if order.status == 'Delivered' %}active{% endif %}">
-                            <div class="track-icon"><i class="fa fa-home"></i></div>
-                            <div class="track-text">Delivered</div>
-                        </div>
-                    </div>
+    {% if orders %}
+        {% for order in orders %}
+        <div class="order-card shadow-sm">
+            <div class="d-flex justify-content-between border-bottom pb-2 mb-3">
+                <span class="text-muted small fw-bold">#ORD-{{ order.id }}</span>
+                <div>
+                    {% if order.status == "Cancelled" %}
+                        <span class="status-badge-cancelled"><i class="fa fa-times-circle"></i> CANCELLED</span>
+                    {% elif order.status == "Return Requested" %}
+                        <span class="status-badge-return"><i class="fa fa-undo"></i> RETURN REQUESTED</span>
+                    {% else %}
+                        <span class="small fw-bold text-success"><i class="fa fa-check-circle"></i> {{ order.status|upper }}</span>
                     {% endif %}
-                    
-                    <div class="mb-3 mt-4">
-                        <p class="small text-dark mb-1 fw-bold">Items Details:</p>
-                        <p class="text-muted small mb-0">{{ order.product_details }}</p>
-                    </div>
-
-                    <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
-                        <div>
-                            <p class="mb-0 text-muted small">Total Price</p>
-                            <h5 class="fw-bold text-dark mb-0">₹{{ order.total_price }}</h5>
-                        </div>
-                        
-                        <div class="d-flex gap-2">
-                            {% if order.status == "Pending" or order.status == "Placed" %}
-                                <a href="{{ url_for('cancel_order', id=order.id) }}" 
-                                   class="btn btn-sm btn-outline-danger fw-bold" 
-                                   onclick="return confirm('Are you sure you want to cancel this order?')">CANCEL</a>
-                            {% endif %}
-
-                            <a href="https://wa.me/916360811196?text=Hi, I need help with my Order #{{ order.id }}" 
-                               target="_blank"
-                               class="btn btn-sm btn-success fw-bold">
-                               <i class="fab fa-whatsapp"></i> HELP
-                            </a>
-                        </div>
-                    </div>
                 </div>
-                {% endfor %}
-            {% else %}
-                <div class="bg-white p-5 text-center rounded border mx-2 shadow-sm">
-                    <i class="fa fa-box-open fa-3x text-muted mb-3"></i>
-                    <h5 class="fw-bold">No orders found!</h5>
-                    <p class="text-muted small">You haven't placed any orders yet.</p>
-                    <a href="/" class="btn btn-warning mt-2 fw-bold px-4 rounded-pill">Start Shopping</a>
+            </div>
+
+            {% if order.status not in ["Cancelled", "Return Requested"] %}
+            <div class="track-container">
+                <div class="track-line"></div>
+                <div class="track-step active">
+                    <div class="track-icon"><i class="fa fa-check"></i></div>
+                    <div class="track-text">Placed</div>
                 </div>
+                <div class="track-step {% if order.status in ['Shipped', 'Out for Delivery', 'Delivered'] %}active{% endif %}">
+                    <div class="track-icon"><i class="fa fa-truck"></i></div>
+                    <div class="track-text">Shipped</div>
+                </div>
+                <div class="track-step {% if order.status in ['Out for Delivery', 'Delivered'] %}active{% endif %}">
+                    <div class="track-icon"><i class="fa fa-motorcycle"></i></div>
+                    <div class="track-text">Out for Delivery</div>
+                </div>
+                <div class="track-step {% if order.status == 'Delivered' %}active{% endif %}">
+                    <div class="track-icon"><i class="fa fa-home"></i></div>
+                    <div class="track-text">Delivered</div>
+                </div>
+            </div>
             {% endif %}
+
+            <div class="my-3">
+                <p class="small text-dark mb-1 fw-bold">Items:</p>
+                <p class="text-muted small mb-0">{{ order.product_details }}</p>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                <h5 class="fw-bold m-0">₹{{ order.total_price }}</h5>
+                
+                <div class="d-flex gap-2">
+                    {% if order.status in ["Placed", "Pending"] %}
+                    <a href="{{ url_for('cancel_order', id=order.id) }}" 
+                       class="btn btn-sm btn-outline-danger fw-bold" 
+                       onclick="return confirm('Cancel this order?')">CANCEL</a>
+                    
+                    {% elif order.status == "Delivered" %}
+                    <a href="{{ url_for('request_return', id=order.id) }}" 
+                       class="btn btn-sm btn-outline-dark fw-bold">RETURN</a>
+                    {% endif %}
+
+                    <a href="https://wa.me/916360811196?text=Help with Order #{{ order.id }}" 
+                       class="btn btn-sm btn-success fw-bold"><i class="fab fa-whatsapp"></i> HELP</a>
+                </div>
+            </div>
         </div>
-    </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fa fa-box-open fa-3x text-muted mb-3"></i>
+            <h5 class="fw-bold">No orders yet!</h5>
+            <a href="/" class="btn btn-warning mt-2 fw-bold rounded-pill">Shop Now</a>
+        </div>
+    {% endif %}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
