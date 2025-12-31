@@ -22,9 +22,9 @@
         }
         .nav-link-menu { color: #fff !important; font-size: 13px; font-weight: 600; padding: 10px 0; text-transform: uppercase; border-bottom: 1px solid #333; }
         .btn-exit-menu { color: #ff4d4d !important; font-weight: 800; border: 1px solid #ff4d4d; border-radius: 4px; padding: 5px 15px; margin-top: 10px; display: inline-block; text-decoration: none; font-size: 12px; }
-        .product-card { border-radius: 6px; background: #fff; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.08); height: 100%; transition: transform 0.2s ease; }
+        .product-card { border-radius: 6px; background: #fff; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.08); height: 100%; transition: transform 0.2s ease; overflow: hidden; }
         .product-card:hover { transform: translateY(-5px); }
-        .img-container { height: 145px; background: #fff; display: flex; align-items: center; justify-content: center; padding: 5px; }
+        .img-container { height: 160px; background: #fff; display: flex; align-items: center; justify-content: center; padding: 5px; }
         .img-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
         .product-title { font-size: 0.75rem; font-weight: 700; color: #333; margin-bottom: 2px; }
         .hero-announcement { background-color: #111; color: #fff; border-radius: 8px; padding: 25px 10px; text-align: center; margin: 15px 0; border: 1px solid #333; }
@@ -39,7 +39,7 @@
     <div class="container px-2">
         <a class="navbar-brand" href="/">EVIA</a>
         <form class="search-group" action="/" method="GET">
-            <input class="form-control search-input" type="search" name="q" placeholder="Search items...">
+            <input class="form-control search-input" type="search" name="q" placeholder="Search items..." value="{{ request.args.get('q', '') }}">
             <button class="search-btn" type="submit"><i class="fa fa-search"></i></button>
         </form>
         <a href="/cart" class="cart-link position-relative">
@@ -54,12 +54,9 @@
         <div class="collapse navbar-collapse" id="mainMenu">
             <div class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
-                    <a class="nav-link nav-link-menu" href="{{ url_for('profile') }}">My Orders</a>
-                    
-                    {% if current_user.is_admin %}
+                    {% if current_user.email == 'admin@test.gmail.com' %}
                         <a class="nav-link nav-link-menu text-info" href="/admin">Admin Panel</a>
                     {% endif %}
-                    
                     <div class="text-center">
                         <a class="btn-exit-menu" href="/logout">LOGOUT</a>
                     </div>
@@ -74,17 +71,6 @@
 
 <div class="content-wrapper">
     <div class="container">
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            {% for message in messages %}
-              <div class="alert alert-info alert-dismissible fade show mt-2" role="alert" style="font-size: 12px; padding: 8px;">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="padding: 10px;"></button>
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
         <div class="hero-announcement">
             <h2>SURPLUS TEES & PANTS</h2>
             <p style="font-size: 0.7rem; opacity: 0.6;">PREMIUM STOCK • LIMITED EDITION</p>
@@ -105,7 +91,7 @@
                             </div>
                         </a>
                         <div class="px-2 pb-2">
-                            <a href="{{ url_for('add_to_cart', id=p.id) }}" class="btn btn-warning w-100 btn-sm fw-bold" style="font-size: 10px;">
+                            <a href="{{ url_for('add_to_cart', id=p.id) }}" class="btn btn-warning w-100 btn-sm fw-bold" style="font-size: 10px; background-color: #ff9f00; border: none; color: white;">
                                 <i class="fa fa-cart-plus me-1"></i> ADD TO CART
                             </a>
                         </div>
@@ -114,7 +100,8 @@
                 {% endfor %}
             {% else %}
                 <div class="col-12 text-center py-5">
-                    <p class="text-muted">No products found.</p>
+                    <p class="text-muted">No products found for "{{ request.args.get('q') }}"</p>
+                    <a href="/" class="btn btn-dark btn-sm rounded-pill px-4">See All Items</a>
                 </div>
             {% endif %}
         </div>
