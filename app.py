@@ -53,41 +53,30 @@ def load_user(user_id):
 # --- SHOP ROUTES ---
 @app.route('/')
 def index():
-    return render_template('index.html', products=Product.query.all())
+    q = request.args.get('q')
+    if q:
+        products = Product.query.filter(Product.name.contains(q) | Product.description.contains(q)).all()
+    else:
+        products = Product.query.all()
+    return render_template('index.html', products=products)
+
+@app.route('/product/<int:id>')
+def product_detail(id):
+    product = Product.query.get_or_404(id)
+    return render_template('product_detail.html', product=product)
 
 # --- AUTH ROUTES ---
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        if User.query.filter_by(email=email).first():
-            flash("Email already exists!")
-            return redirect(url_for('signup'))
-        new_user = User(
-            full_name=request.form.get('name'),
-            email=email,
-            password=generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        login_user(new_user)
-        return redirect(url_for('index'))
-    return render_template('signup.html')
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
         user = User.query.filter_by(email=email).first()
-        
         if user and check_password_hash(user.password, password):
             login_user(user)
             if user.email == 'admin@test.gmail.com':
-                flash("Welcome Boss! Admin Access Granted.")
                 return redirect(url_for('admin_panel'))
             return redirect(url_for('index'))
-            
         flash("Invalid email or password")
     return render_template('login.html')
 
@@ -95,14 +84,6 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
-
-# --- CART & BAG LOGIC ---
-@app.route('/cart')
-def cart():
-    cart_ids = session.get('cart', [])
-    items = Product.query.filter(Product.id.in_(cart_ids)).all() if cart_ids else []
-    total = sum(i.price for i in items)
-    return render_template('cart.html', items=items, total=total)
 
 @app.route('/add-to-cart/<int:id>')
 def add_to_cart(id):
@@ -112,62 +93,27 @@ def add_to_cart(id):
     cart_list.append(id)
     session['cart'] = cart_list
     session.modified = True
-    flash("Item added to your bag!")
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return "Success", 200
+    
+    if request.args.get('next') == 'cart':
+        return redirect(url_for('cart'))
     return redirect(url_for('index'))
 
-@app.route('/remove-from-cart/<int:id>')
-def remove_from_cart(id):
-    cart_list = session.get('cart', [])
-    if id in cart_list:
-        cart_list.remove(id)
-        session['cart'] = cart_list
-        session.modified = True
-        flash("Item removed from bag.")
-    return redirect(url_for('cart'))
-
-@app.route('/checkout', methods=['GET', 'POST'])
-@login_required
-def checkout():
+@app.route('/cart')
+def cart():
     cart_ids = session.get('cart', [])
     items = Product.query.filter(Product.id.in_(cart_ids)).all() if cart_ids else []
-    
-    if not items:
-        flash("Your bag is empty!")
-        return redirect(url_for('index'))
-
     total = sum(i.price for i in items)
-
-    if request.method == 'POST':
-        whatsapp = request.form.get('whatsapp')
-        address = request.form.get('address')
-        district = request.form.get('district')
-        pincode = request.form.get('pincode')
-        
-        full_address = f"{address}, {district} - {pincode}"
-        product_names = ", ".join([p.name for p in items])
-
-        new_order = Order(
-            product_details=product_names,
-            total_price=total,
-            user_id=current_user.id,
-            whatsapp=whatsapp,
-            address=full_address,
-            status="Placed"
-        )
-        db.session.add(new_order)
-        db.session.commit()
-        session.pop('cart', None)
-        return render_template('checkout.html', success=True)
-
-    return render_template('checkout.html', total=total, items=items, success=False)
+    return render_template('cart.html', items=items, total=total)
 
 # --- ADMIN ROUTES ---
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
 def admin_panel():
     if current_user.email != 'admin@test.gmail.com':
-        return "<h1>Access Denied</h1><p>Only the owner can see this page.</p>", 403
-
+        return "Access Denied", 403
     if request.method == 'POST':
         new_p = Product(
             name=request.form.get('name'), 
@@ -178,37 +124,20 @@ def admin_panel():
         )
         db.session.add(new_p)
         db.session.commit()
-        flash("Product added successfully!")
         return redirect(url_for('admin_panel'))
-
     orders = Order.query.order_by(Order.date_ordered.desc()).all()
-    return render_template('admin.html', orders=orders)
+    products = Product.query.all()
+    return render_template('admin.html', orders=orders, products=products)
 
-@app.route('/update_status/<int:id>/<string:st>')
-@login_required
-def update_status(id, st):
-    if current_user.email == 'admin@test.gmail.com':
-        o = Order.query.get(id)
-        if o:
-            o.status = st
-            db.session.commit()
-            flash(f"Order #{id} status updated!")
-    return redirect(url_for('admin_panel'))
-
-# --- SETUP ROUTE ---
 @app.route('/setup-admin-99')
 def setup_admin():
     db.drop_all()
     db.create_all()
-    admin = User(
-        full_name="Admin", 
-        email="admin@test.gmail.com", 
-        password=generate_password_hash('admin123', method='pbkdf2:sha256'), 
-        is_admin=True
-    )
+    admin = User(full_name="Admin", email="admin@test.gmail.com", 
+                 password=generate_password_hash('admin123', method='pbkdf2:sha256'), is_admin=True)
     db.session.add(admin)
     db.session.commit()
-    return "evia.db FIXED! Login: admin@test.gmail.com | Pass: admin123"
+    return "Database Reset Success!"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
