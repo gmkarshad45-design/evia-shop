@@ -7,25 +7,27 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --sidebar-width: 260px; }
-        body { background: #f4f7f6; font-family: 'Inter', sans-serif; }
+        :root { --sidebar-width: 260px; --evia-orange: #fb641b; }
+        body { background: #f8f9fa; font-family: 'Inter', sans-serif; }
         
-        /* Sidebar */
-        .sidebar { background: #111; color: white; min-height: 100vh; width: var(--sidebar-width); position: fixed; transition: 0.3s; z-index: 1000; }
-        .sidebar a { color: #aaa; text-decoration: none; padding: 15px 25px; display: block; transition: 0.3s; }
-        .sidebar a:hover, .sidebar a.active { background: #222; color: #fff; }
+        .sidebar { background: #111; color: white; min-height: 100vh; width: var(--sidebar-width); position: fixed; z-index: 1000; }
+        .sidebar a { color: #aaa; text-decoration: none; padding: 15px 25px; display: block; transition: 0.3s; border-left: 4px solid transparent; }
+        .sidebar a:hover, .sidebar a.active { background: #222; color: #fff; border-left: 4px solid var(--evia-orange); }
         
-        /* Content Area */
-        .main-content { margin-left: var(--sidebar-width); padding: 40px; transition: 0.3s; }
+        .main-content { margin-left: var(--sidebar-width); padding: 40px; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
         
-        .card { border: none; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 25px; }
-        .order-card { border-left: 5px solid #fb641b; }
-        .badge-status { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 6px 12px; border-radius: 50px; }
-
+        /* Table Styling */
+        .table { background: white; border-radius: 10px; overflow: hidden; }
+        .table thead { background: #fafafa; border-bottom: 2px solid #f1f1f1; }
+        .table th { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; padding: 15px; }
+        .table td { padding: 15px; vertical-align: middle; border-bottom: 1px solid #f9f9f9; }
+        
+        .status-pill { padding: 5px 12px; border-radius: 50px; font-size: 11px; font-weight: 700; }
+        
         @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); width: 100%; height: auto; min-height: auto; position: relative; }
-            .sidebar.show { transform: translateX(0); }
-            .main-content { margin-left: 0; padding: 20px; }
+            .sidebar { width: 100%; height: auto; position: relative; }
+            .main-content { margin-left: 0; padding: 15px; }
         }
     </style>
 </head>
@@ -35,90 +37,103 @@
     <div class="p-4 border-bottom border-secondary mb-3 text-center">
         <h4 class="fw-bold m-0 text-white">EVIA ADMIN</h4>
     </div>
-    <a href="/" class="active"><i class="fa fa-shopping-cart me-2"></i> View Store</a>
-    <a href="#orders"><i class="fa fa-box me-2"></i> Orders</a>
-    <a href="#add-product"><i class="fa fa-plus-circle me-2"></i> Add Product</a>
-    <a href="/logout" class="text-danger mt-5"><i class="fa fa-sign-out-alt me-2"></i> Logout</a>
+    <a href="/admin" class="active"><i class="fa fa-dashboard me-2"></i> Dashboard</a>
+    <a href="/"><i class="fa fa-eye me-2"></i> View Shop</a>
+    <a href="/logout" class="text-danger"><i class="fa fa-sign-out-alt me-2"></i> Logout</a>
 </div>
 
 <div class="main-content">
-    
-    <div id="add-product" class="card p-4 mb-5">
-        <h4 class="fw-bold mb-4">Add New Product</h4>
+    <div class="card p-4 mb-5">
+        <h5 class="fw-bold mb-4 text-uppercase" style="letter-spacing: 1px;">+ New Product</h5>
         <form action="/admin" method="POST">
             <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="small fw-bold text-muted">PRODUCT NAME</label>
-                    <input type="text" name="name" class="form-control" required placeholder="Ex: Black Oversized Tee">
-                </div>
-                <div class="col-md-3">
-                    <label class="small fw-bold text-muted">PRICE (₹)</label>
-                    <input type="number" name="price" class="form-control" required placeholder="999">
-                </div>
-                <div class="col-md-12">
-                    <label class="small fw-bold text-muted">MAIN IMAGE URL</label>
-                    <input type="text" name="image" class="form-control" required placeholder="Paste first image link">
-                </div>
-                <div class="col-md-12">
-                    <label class="small fw-bold text-muted">SECOND IMAGE URL (SCROLL)</label>
-                    <input type="text" name="image_2" class="form-control" placeholder="Paste second image link">
-                </div>
-                <div class="col-md-12">
-                    <label class="small fw-bold text-muted">DESCRIPTION</label>
-                    <textarea name="description" class="form-control" rows="2"></textarea>
-                </div>
+                <div class="col-md-6"><input type="text" name="name" class="form-control" required placeholder="Product Name"></div>
+                <div class="col-md-6"><input type="number" name="price" class="form-control" required placeholder="Price (₹)"></div>
+                <div class="col-md-6"><input type="text" name="image" class="form-control" required placeholder="Image URL 1"></div>
+                <div class="col-md-6"><input type="text" name="image_2" class="form-control" placeholder="Image URL 2"></div>
+                <div class="col-12"><textarea name="description" class="form-control" placeholder="Description..."></textarea></div>
+                <div class="col-12"><button type="submit" class="btn btn-dark w-100 fw-bold py-2">UPLOAD TO STORE</button></div>
             </div>
-            <button type="submit" class="btn btn-dark mt-4 px-5 fw-bold">UPLOAD PRODUCT</button>
         </form>
     </div>
 
-    <h2 id="orders" class="fw-bold mb-4">Customer Orders</h2>
-    
-    {% for o in orders %}
-    <div class="card order-card p-4">
-        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
-            <div>
-                <span class="text-muted small fw-bold">ORDER #{{ o.id }}</span>
-                <p class="m-0 small">{{ o.date_ordered.strftime('%d %b, %Y %I:%M %p') }}</p>
-            </div>
-            <span class="badge badge-status {% if o.status == 'Delivered' %}bg-success{% elif o.status == 'Cancelled' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
-                {{ o.status }}
-            </span>
-        </div>
+    <h4 class="fw-bold mb-4">Recent Orders</h4>
+    <div class="card p-0 overflow-hidden">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in orders %}
+                <tr>
+                    <td class="fw-bold">#{{ o.id }}</td>
+                    <td>{{ o.customer.full_name }}</td>
+                    <td class="text-muted small">{{ o.date_ordered.strftime('%d %b, %H:%M') }}</td>
+                    <td class="fw-bold">₹{{ o.total_price }}</td>
+                    <td>
+                        <span class="status-pill {% if o.status == 'Delivered' %}bg-success text-white{% elif o.status == 'Cancelled' %}bg-danger text-white{% else %}bg-warning{% endif %}">
+                            {{ o.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-dark px-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#orderModal{{ o.id }}">
+                            View Detail
+                        </button>
+                    </td>
+                </tr>
 
-        <div class="row">
-            <div class="col-md-4 mb-3 mb-md-0">
-                <label class="small text-muted d-block fw-bold mb-1">CUSTOMER INFO</label>
-                <div class="fw-bold">{{ o.customer.full_name }}</div>
-                <a href="https://wa.me/91{{ o.whatsapp }}" target="_blank" class="btn btn-sm btn-success mt-2 rounded-pill px-3">
-                    <i class="fab fa-whatsapp me-1"></i> Chat WhatsApp
-                </a>
-            </div>
-            
-            <div class="col-md-4 mb-3 mb-md-0 border-start ps-4">
-                <label class="small text-muted d-block fw-bold mb-1">SHIPPING ADDRESS</label>
-                <div class="small lh-base">{{ o.address }}</div>
-            </div>
+                <div class="modal fade" id="orderModal{{ o.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 rounded-4 shadow">
+                            <div class="modal-header border-0 pb-0">
+                                <h5 class="fw-bold">Order Details #{{ o.id }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-4">
+                                    <label class="small text-muted fw-bold d-block text-uppercase">Customer Info</label>
+                                    <h6 class="fw-bold m-0">{{ o.customer.full_name }}</h6>
+                                    <p class="text-muted small">{{ o.customer.email }}</p>
+                                    <a href="https://wa.me/91{{ o.whatsapp }}" target="_blank" class="btn btn-success btn-sm rounded-pill w-100 mt-2">
+                                        <i class="fab fa-whatsapp me-2"></i> WhatsApp: {{ o.whatsapp }}
+                                    </a>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <label class="small text-muted fw-bold d-block text-uppercase">Shipping Address</label>
+                                    <p class="small mb-0">{{ o.address }}</p>
+                                </div>
 
-            <div class="col-md-4 border-start ps-4">
-                <label class="small text-muted d-block fw-bold mb-1">ORDERED ITEMS</label>
-                <div class="small fw-bold text-dark">{{ o.product_details }}</div>
-                <div class="mt-2 text-primary fw-bold">Total: ₹{{ o.total_price }}</div>
-                
-                <div class="mt-3 pt-3 border-top d-flex gap-2">
-                    <a href="{{ url_for('update_status', id=o.id, st='Shipped') }}" class="btn btn-outline-dark btn-sm rounded-pill">Mark Shipped</a>
-                    <a href="{{ url_for('update_status', id=o.id, st='Delivered') }}" class="btn btn-dark btn-sm rounded-pill">Mark Delivered</a>
+                                <div class="p-3 bg-light rounded-3 mb-4">
+                                    <label class="small text-muted fw-bold d-block text-uppercase">Items Ordered</label>
+                                    <p class="fw-bold mb-0 text-dark">{{ o.product_details }}</p>
+                                    <hr>
+                                    <h5 class="fw-bold text-primary mb-0">Total: ₹{{ o.total_price }}</h5>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('update_status', id=o.id, st='Shipped') }}" class="btn btn-outline-dark w-100 fw-bold py-2 rounded-3">Ship</a>
+                                    <a href="{{ url_for('update_status', id=o.id, st='Delivered') }}" class="btn btn-dark w-100 fw-bold py-2 rounded-3">Deliver</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
+                {% else %}
+                <tr><td colspan="6" class="text-center py-5 text-muted">No orders found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    {% else %}
-    <div class="text-center py-5">
-        <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
-        <h5 class="text-muted">No orders placed yet.</h5>
-    </div>
-    {% endfor %}
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
