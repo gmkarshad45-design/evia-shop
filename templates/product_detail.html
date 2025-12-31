@@ -30,7 +30,6 @@
             -webkit-overflow-scrolling: touch;
         }
         .scroll-wrapper::-webkit-scrollbar { display: none; }
-        .scroll-wrapper { -ms-overflow-style: none; scrollbar-width: none; }
 
         .scroll-item {
             flex: 0 0 100%;
@@ -92,10 +91,10 @@
 
     <div class="back-nav">
         <div>
-            <a href="/" class="text-dark me-3"><i class="fa fa-arrow-left"></i></a>
+            <a href="/" class="text-dark me-3 text-decoration-none"><i class="fa fa-arrow-left"></i></a>
             <span style="font-size: 11px; font-weight: 800;">PRODUCT OVERVIEW</span>
         </div>
-        <a href="/cart" class="text-dark position-relative me-2">
+        <a href="/cart" class="text-dark position-relative me-2 text-decoration-none">
             <i class="fa fa-shopping-bag" style="font-size: 18px;"></i>
             <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9px;">
                 {{ session['cart']|length if session.get('cart') else 0 }}
@@ -117,7 +116,6 @@
                         </div>
                         {% endif %}
                     </div>
-                    
                     {% if product.image_2 %}
                     <div class="scroll-dots">
                         <div class="dot active"></div>
@@ -146,7 +144,7 @@
                 <div class="mt-4">
                     <h6 style="font-size: 11px; font-weight: 800; color: #111;">PRODUCT DESCRIPTION</h6>
                     <p style="font-size: 13px; color: #666; line-height: 1.6; margin-top: 10px;">
-                        {{ product.description or 'High-quality premium surplus item. Limited stock available. Guaranteed durability and comfort for daily use.' }}
+                        {{ product.description or 'High-quality premium surplus item.' }}
                     </p>
                 </div>
             </div>
@@ -157,10 +155,30 @@
 
     <div class="bottom-bar">
         <button class="cart-btn" onclick="addToCart({{ product.id }})">ADD TO CART</button>
-        <a href="{{ url_for('add_to_cart', id=product.id) }}" class="buy-btn-split">BUY NOW</a>
+        <a href="{{ url_for('add_to_cart', id=product.id) }}?next=cart" class="buy-btn-split">BUY NOW</a>
     </div>
 
     <script>
+        function addToCart(productId) {
+            fetch('/add-to-cart/' + productId, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => {
+                if(response.ok) {
+                    showToast();
+                    let countObj = document.getElementById('cart-count');
+                    countObj.innerText = parseInt(countObj.innerText) + 1;
+                }
+            });
+        }
+
+        function showToast() {
+            var x = document.getElementById("cart-toast");
+            x.className = "show";
+            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+        }
+
         function checkDelivery() {
             const pin = document.getElementById('pinCode').value;
             const msg = document.getElementById('deliveryMsg');
@@ -182,28 +200,6 @@
                     dot.classList.toggle('active', i === index);
                 });
             });
-        }
-
-        // Add to Cart with AJAX (So page doesn't reload)
-        function addToCart(productId) {
-            fetch('/add_to_cart/' + productId, {
-                method: 'GET',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(response => {
-                if(response.ok) {
-                    showToast();
-                    // Update the badge count manually
-                    let countObj = document.getElementById('cart-count');
-                    countObj.innerText = parseInt(countObj.innerText) + 1;
-                }
-            });
-        }
-
-        function showToast() {
-            var x = document.getElementById("cart-toast");
-            x.className = "show";
-            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
         }
     </script>
 </body>
