@@ -1,33 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EVIA | Admin</title>
+    <title>EVIA | Admin Panel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body { background: #121212; color: #fff; font-family: 'Inter', sans-serif; }
-        .admin-card { background: #1e1e1e; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; }
-        .status-badge { font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 4px; }
-        .bg-placed { background: #0d6efd; }
-        .bg-shipped { background: #6f42c1; }
-        .bg-delivery { background: #ff9f00; }
-        .bg-delivered { background: #198754; }
-        .bg-return { background: #dc3545; }
+        .admin-card { background: #1e1e1e; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; overflow: hidden; }
+        .status-badge { font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; }
         
-        .scroll-x { overflow-x: auto; white-space: nowrap; padding-bottom: 10px; }
-        .nav-tabs .nav-link { color: #888; border: none; font-weight: 700; }
+        /* Dynamic Status Colors */
+        .bg-placed { background: #0d6efd; color: white; }
+        .bg-shipped { background: #6f42c1; color: white; }
+        .bg-outfordelivery { background: #ff9f00; color: white; }
+        .bg-delivered { background: #198754; color: white; }
+        .bg-cancelled { background: #dc3545; color: white; }
+        .bg-returnrequested { background: #fd7e14; color: white; }
+
+        .scroll-x { display: flex; overflow-x: auto; white-space: nowrap; gap: 8px; padding: 10px 0; -webkit-overflow-scrolling: touch; }
+        .scroll-x::-webkit-scrollbar { display: none; }
+        
+        .nav-tabs .nav-link { color: #888; border: none; font-weight: 700; border-radius: 0; }
         .nav-tabs .nav-link.active { color: #ff9f00; background: none; border-bottom: 3px solid #ff9f00; }
-        
-        .btn-action { font-size: 11px; font-weight: 700; padding: 5px 10px; }
+        .btn-action { font-size: 10px; font-weight: 800; padding: 6px 12px; border-radius: 6px; }
     </style>
 </head>
 <body>
 
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold text-warning">EVIA ADMIN</h4>
-        <a href="/" class="btn btn-outline-light btn-sm">VIEW SHOP</a>
+        <h4 class="fw-bold text-warning m-0">EVIA ADMIN</h4>
+        <a href="/" class="btn btn-outline-light btn-sm">EXIT</a>
     </div>
 
     <ul class="nav nav-tabs mb-4 border-0">
@@ -37,33 +42,54 @@
 
     <div class="tab-content">
         <div id="orders" class="tab-pane fade show active">
-            {% for o in orders %}
-            <div class="admin-card p-3">
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="text-muted small">#ORD-{{ o.id }}</span>
-                    <span class="status-badge bg-{{ o.status|lower|replace(' ', '') }}">{{ o.status|upper }}</span>
+            {% if orders %}
+                {% for o in orders %}
+                <div class="admin-card p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small">#ORD-{{ o.id }}</span>
+                        <span class="status-badge bg-{{ o.status|lower|replace(' ', '') }}">
+                            {{ o.status }}
+                        </span>
+                    </div>
+                    <h6 class="fw-bold text-white mb-1">{{ o.product_details }}</h6>
+                    <p class="small text-secondary mb-1">Total: ₹{{ o.total_price }} | WA: {{ o.whatsapp }}</p>
+                    <p class="small text-secondary mb-3">{{ o.address }}</p>
+                    
+                    <div class="scroll-x">
+                        <a href="/admin/update-status/{{ o.id }}/Shipped" class="btn btn-primary btn-action">SHIP</a>
+                        <a href="/admin/update-status/{{ o.id }}/Out for Delivery" class="btn btn-warning btn-action text-dark">OUT FOR DELIVERY</a>
+                        <a href="/admin/update-status/{{ o.id }}/Delivered" class="btn btn-success btn-action">DELIVERED</a>
+                        <a href="/admin/update-status/{{ o.id }}/Cancelled" class="btn btn-danger btn-action">CANCEL</a>
+                    </div>
                 </div>
-                <h6 class="mb-1 text-truncate">{{ o.product_details }}</h6>
-                <p class="small text-secondary mb-2">₹{{ o.total_price }} | {{ o.whatsapp }}</p>
-                <p class="small text-secondary mb-3">{{ o.address }}</p>
-                
-                <div class="scroll-x">
-                    <a href="/admin/update-status/{{ o.id }}/Shipped" class="btn btn-primary btn-action">SHIP</a>
-                    <a href="/admin/update-status/{{ o.id }}/Out for Delivery" class="btn btn-warning btn-action">OUT FOR DELIVERY</a>
-                    <a href="/admin/update-status/{{ o.id }}/Delivered" class="btn btn-success btn-action">DELIVERED</a>
-                    <a href="/admin/update-status/{{ o.id }}/Cancelled" class="btn btn-danger btn-action">CANCEL</a>
-                </div>
-            </div>
-            {% endfor %}
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-5 text-muted">No orders found.</div>
+            {% endif %}
         </div>
 
         <div id="inventory" class="tab-pane fade">
             <form action="/admin/add-product" method="POST" class="admin-card p-3">
-                <div class="mb-3"><input type="text" name="name" class="form-control bg-dark text-white border-secondary" placeholder="Product Name" required></div>
-                <div class="mb-3"><input type="number" name="price" class="form-control bg-dark text-white border-secondary" placeholder="Price (₹)" required></div>
-                <div class="mb-3"><input type="text" name="image" class="form-control bg-dark text-white border-secondary" placeholder="Main Image URL" required></div>
-                <div class="mb-3"><input type="text" name="image_2" class="form-control bg-dark text-white border-secondary" placeholder="Second Image URL (Optional)"></div>
-                <div class="mb-3"><textarea name="description" class="form-control bg-dark text-white border-secondary" placeholder="Description"></textarea></div>
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Product Title</label>
+                    <input type="text" name="name" class="form-control bg-dark text-white border-secondary" required>
+                </div>
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Price (₹)</label>
+                    <input type="number" name="price" class="form-control bg-dark text-white border-secondary" required>
+                </div>
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Image 1 (Main)</label>
+                    <input type="text" name="image" class="form-control bg-dark text-white border-secondary" required>
+                </div>
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Image 2 (Optional)</label>
+                    <input type="text" name="image_2" class="form-control bg-dark text-white border-secondary">
+                </div>
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Description</label>
+                    <textarea name="description" rows="3" class="form-control bg-dark text-white border-secondary"></textarea>
+                </div>
                 <button type="submit" class="btn btn-warning w-100 fw-bold">UPLOAD PRODUCT</button>
             </form>
         </div>
