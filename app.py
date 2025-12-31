@@ -6,11 +6,11 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_2025_secure')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_secure_2025')
 
-# Database Setup for Render/PostgreSQL or Local SQLite
+# FORCE USE OF evia.db
 database_url = os.environ.get("DATABASE_URL", "sqlite:///evia.db")
-if database_url and database_url.startswith("postgres://"):
+if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -50,7 +50,11 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- AUTH ROUTES ---
+# --- ROUTES ---
+@app.route('/')
+def index():
+    return render_template('index.html', products=Product.query.all())
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -76,18 +80,8 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('admin_panel' if user.is_admin else 'index'))
-        flash("Invalid email or password")
+        flash("Invalid credentials")
     return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    logout_user()
-    return redirect(url_for('index'))
-
-# --- SHOP ROUTES ---
-@app.route('/')
-def index():
-    return render_template('index.html', products=Product.query.all())
 
 @app.route('/cart')
 def cart():
@@ -96,68 +90,14 @@ def cart():
     total = sum(i.price for i in items)
     return render_template('cart.html', items=items, total=total)
 
-@app.route('/add-to-cart/<int:id>')
-def add_to_cart(id):
-    cart = session.get('cart', [])
-    cart.append(id)
-    session['cart'] = cart
-    flash("Added to bag")
-    return redirect(url_for('index'))
-
 @app.route('/remove-from-cart/<int:id>')
 def remove_from_cart(id):
     cart = session.get('cart', [])
     if id in cart:
         cart.remove(id)
         session['cart'] = cart
+        session.modified = True
     return redirect(url_for('cart'))
-
-@app.route('/checkout', methods=['GET', 'POST'])
-@login_required
-def checkout():
-    cart_ids = session.get('cart', [])
-    items = Product.query.filter(Product.id.in_(cart_ids)).all() if cart_ids else []
-    if not items: return redirect(url_for('index'))
-    total = sum(i.price for i in items)
-    if request.method == 'POST':
-        addr = f"{request.form.get('address')}, {request.form.get('district')} ({request.form.get('pincode')})"
-        new_order = Order(
-            product_details=", ".join([p.name for p in items]),
-            total_price=total,
-            user_id=current_user.id,
-            whatsapp=request.form.get('whatsapp'),
-            address=addr
-        )
-        db.session.add(new_order)
-        db.session.commit()
-        session.pop('cart', None)
-        flash("ORDER_SUCCESS")
-        return redirect(url_for('checkout'))
-    return render_template('checkout.html', total=total)
-
-# --- ADMIN ROUTES ---
-@app.route('/admin', methods=['GET', 'POST'])
-@login_required
-def admin_panel():
-    if not current_user.is_admin: return redirect(url_for('index'))
-    if request.method == 'POST':
-        new_p = Product(
-            name=request.form.get('name'), price=request.form.get('price'),
-            image=request.form.get('image'), image_2=request.form.get('image_2'),
-            description=request.form.get('description')
-        )
-        db.session.add(new_p)
-        db.session.commit()
-    return render_template('admin.html', orders=Order.query.all(), products=Product.query.all())
-
-@app.route('/update_status/<int:id>/<string:st>')
-@login_required
-def update_status(id, st):
-    if current_user.is_admin:
-        o = Order.query.get(id)
-        o.status = st
-        db.session.commit()
-    return redirect(url_for('admin_panel'))
 
 @app.route('/setup-admin-99')
 def setup_admin():
@@ -167,7 +107,7 @@ def setup_admin():
                  password=generate_password_hash('admin123', method='pbkdf2:sha256'), is_admin=True)
     db.session.add(admin)
     db.session.commit()
-    return "DATABASE FIXED! Login: admin@test.gmail.com | Pass: admin123"
+    return "evia.db FIXED! Login: admin@test.gmail.com | Pass: admin123"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
