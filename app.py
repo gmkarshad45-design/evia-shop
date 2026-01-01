@@ -50,31 +50,29 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- ROUTES ---
+# --- SHOP ROUTES ---
 
 @app.route('/')
 def index():
     products = Product.query.all()
     return render_template('index.html', products=products)
 
-# FIX 1: Missing Product Detail Route
 @app.route('/product/<int:id>')
 def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# FIX 2: Missing Signup Route
+# --- AUTH ROUTES ---
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         name = request.form.get('full_name')
         email = request.form.get('email')
         password = request.form.get('password')
-        
         if User.query.filter_by(email=email).first():
             flash("Email already exists!")
             return redirect(url_for('signup'))
-            
         hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
         new_user = User(full_name=name, email=email, password=hashed_pw)
         db.session.add(new_user)
@@ -100,7 +98,7 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- CART & ADMIN ---
+# --- CART ---
 
 @app.route('/add-to-cart/<int:id>')
 def add_to_cart(id):
@@ -118,6 +116,8 @@ def cart():
     total = sum(i.price for i in items)
     return render_template('cart.html', items=items, total=total)
 
+# --- PERFECTED ADMIN PANEL LOGIC ---
+
 @app.route('/admin')
 @login_required
 def admin_panel():
@@ -125,13 +125,40 @@ def admin_panel():
         return "Access Denied", 403
     orders = Order.query.order_by(Order.date_ordered.desc()).all()
     products = Product.query.all()
-    return render_template('admin.html', orders=orders, products=products)
+    # Adding revenue calculation for your new stats dashboard
+    total_revenue = sum(o.total_price for o in orders if o.status != 'Cancelled')
+    return render_template('admin.html', orders=orders, products=products, revenue=total_revenue)
+
+@app.route('/admin/add-product', methods=['POST'])
+@login_required
+def admin_add_product():
+    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    new_p = Product(
+        name=request.form.get('name'),
+        price=int(request.form.get('price')),
+        image=request.form.get('image'),
+        image_2=request.form.get('image_2'),
+        description=request.form.get('description')
+    )
+    db.session.add(new_p)
+    db.session.commit()
+    flash("Product Added!")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/update-status/<int:id>/<string:status>')
+@login_required
+def update_status(id, status):
+    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    order = Order.query.get(id)
+    if order:
+        order.status = status
+        db.session.commit()
+    return redirect(url_for('admin_panel'))
 
 @app.route('/setup-admin-final')
 def setup_admin():
     db.create_all()
-    admin_check = User.query.filter_by(email='admin@test.gmail.com').first()
-    if not admin_check:
+    if not User.query.filter_by(email='admin@test.gmail.com').first():
         hashed_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
         admin = User(full_name="Admin", email="admin@test.gmail.com", password=hashed_pw, is_admin=True)
         db.session.add(admin)
