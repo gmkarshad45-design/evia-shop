@@ -98,7 +98,7 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- CART ---
+# --- CART SYSTEM (FIXED) ---
 
 @app.route('/add-to-cart/<int:id>')
 def add_to_cart(id):
@@ -107,6 +107,17 @@ def add_to_cart(id):
     cart.append(id)
     session['cart'] = cart
     session.modified = True
+    flash("Item added to cart")
+    return redirect(url_for('index'))
+
+@app.route('/remove-from-cart/<int:id>')
+def remove_from_cart(id):
+    if 'cart' in session:
+        cart = list(session['cart'])
+        if id in cart:
+            cart.remove(id)
+            session['cart'] = cart
+            session.modified = True
     return redirect(url_for('cart'))
 
 @app.route('/cart')
@@ -116,7 +127,40 @@ def cart():
     total = sum(i.price for i in items)
     return render_template('cart.html', items=items, total=total)
 
-# --- PERFECTED ADMIN PANEL LOGIC ---
+# --- CHECKOUT ROUTE (MISSING FIX) ---
+
+@app.route('/checkout', methods=['POST'])
+@login_required
+def checkout():
+    cart_ids = session.get('cart', [])
+    if not cart_ids:
+        return redirect(url_for('index'))
+    
+    items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
+    details = ", ".join([i.name for i in items])
+    total = sum(i.price for i in items)
+    
+    new_order = Order(
+        product_details=details,
+        total_price=total,
+        user_id=current_user.id,
+        whatsapp=request.form.get('whatsapp'),
+        address=request.form.get('address')
+    )
+    db.session.add(new_order)
+    db.session.commit()
+    
+    session.pop('cart', None) # Clear cart after order
+    flash("Order placed successfully!")
+    return redirect(url_for('profile'))
+
+@app.route('/profile')
+@login_required
+def profile():
+    orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.date_ordered.desc()).all()
+    return render_template('profile.html', orders=orders)
+
+# --- ADMIN PANEL LOGIC ---
 
 @app.route('/admin')
 @login_required
@@ -125,9 +169,8 @@ def admin_panel():
         return "Access Denied", 403
     orders = Order.query.order_by(Order.date_ordered.desc()).all()
     products = Product.query.all()
-    # Adding revenue calculation for your new stats dashboard
-    total_revenue = sum(o.total_price for o in orders if o.status != 'Cancelled')
-    return render_template('admin.html', orders=orders, products=products, revenue=total_revenue)
+    revenue = sum(o.total_price for o in orders if o.status != 'Cancelled')
+    return render_template('admin.html', orders=orders, products=products, revenue=revenue)
 
 @app.route('/admin/add-product', methods=['POST'])
 @login_required
@@ -142,7 +185,6 @@ def admin_add_product():
     )
     db.session.add(new_p)
     db.session.commit()
-    flash("Product Added!")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/update-status/<int:id>/<string:status>')
