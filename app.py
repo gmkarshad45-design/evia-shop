@@ -50,48 +50,37 @@ class Order(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- SHOP ROUTES ---
+# --- ROUTES ---
 
 @app.route('/')
 def index():
-    q = request.args.get('q')
-    if q:
-        products = Product.query.filter(Product.name.contains(q)).all()
-    else:
-        products = Product.query.all()
+    products = Product.query.all()
     return render_template('index.html', products=products)
 
+# FIX 1: Missing Product Detail Route
 @app.route('/product/<int:id>')
 def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# --- AUTH ROUTES (LOGIN & SIGNUP) ---
-
+# FIX 2: Missing Signup Route
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        full_name = request.form.get('full_name')
+        name = request.form.get('full_name')
         email = request.form.get('email')
         password = request.form.get('password')
         
-        # Check if user already exists
-        user_exists = User.query.filter_by(email=email).first()
-        if user_exists:
-            flash("Email already registered. Please login.")
-            return redirect(url_for('login'))
-        
-        # Create new user with hashed password
+        if User.query.filter_by(email=email).first():
+            flash("Email already exists!")
+            return redirect(url_for('signup'))
+            
         hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
-        new_user = User(full_name=full_name, email=email, password=hashed_pw)
-        
+        new_user = User(full_name=name, email=email, password=hashed_pw)
         db.session.add(new_user)
         db.session.commit()
-        
         login_user(new_user)
-        flash("Account created successfully!")
         return redirect(url_for('index'))
-        
     return render_template('signup.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -102,7 +91,7 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password, password):
             login_user(user)
-            return redirect(url_for('admin_panel') if user.is_admin else url_for('index'))
+            return redirect(url_for('admin_panel') if user.email == 'admin@test.gmail.com' else url_for('index'))
         flash("Invalid credentials")
     return render_template('login.html')
 
@@ -111,5 +100,44 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- CART & ADMIN PANEL ---
-# (Remaining routes like /cart, /admin, /add-to-cart stay the same as previous)
+# --- CART & ADMIN ---
+
+@app.route('/add-to-cart/<int:id>')
+def add_to_cart(id):
+    if 'cart' not in session: session['cart'] = []
+    cart = list(session['cart'])
+    cart.append(id)
+    session['cart'] = cart
+    session.modified = True
+    return redirect(url_for('cart'))
+
+@app.route('/cart')
+def cart():
+    cart_ids = session.get('cart', [])
+    items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
+    total = sum(i.price for i in items)
+    return render_template('cart.html', items=items, total=total)
+
+@app.route('/admin')
+@login_required
+def admin_panel():
+    if current_user.email != 'admin@test.gmail.com':
+        return "Access Denied", 403
+    orders = Order.query.order_by(Order.date_ordered.desc()).all()
+    products = Product.query.all()
+    return render_template('admin.html', orders=orders, products=products)
+
+@app.route('/setup-admin-final')
+def setup_admin():
+    db.create_all()
+    admin_check = User.query.filter_by(email='admin@test.gmail.com').first()
+    if not admin_check:
+        hashed_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
+        admin = User(full_name="Admin", email="admin@test.gmail.com", password=hashed_pw, is_admin=True)
+        db.session.add(admin)
+        db.session.commit()
+        return "Admin created!"
+    return "Exists already."
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=10000)
