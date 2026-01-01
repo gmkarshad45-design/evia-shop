@@ -89,7 +89,10 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password, password):
             login_user(user)
-            return redirect(url_for('admin_panel') if user.email == 'admin@test.gmail.com' else url_for('index'))
+            # Safe admin check
+            if user.email == 'admin@test.gmail.com':
+                return redirect(url_for('admin_panel'))
+            return redirect(url_for('index'))
         flash("Invalid credentials")
     return render_template('login.html')
 
@@ -98,7 +101,7 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- CART SYSTEM (FIXED) ---
+# --- CART SYSTEM ---
 
 @app.route('/add-to-cart/<int:id>')
 def add_to_cart(id):
@@ -127,13 +130,14 @@ def cart():
     total = sum(i.price for i in items)
     return render_template('cart.html', items=items, total=total)
 
-# --- CHECKOUT ROUTE (MISSING FIX) ---
+# --- CHECKOUT & PROFILE ---
 
 @app.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
     cart_ids = session.get('cart', [])
     if not cart_ids:
+        flash("Your cart is empty")
         return redirect(url_for('index'))
     
     items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
@@ -150,17 +154,18 @@ def checkout():
     db.session.add(new_order)
     db.session.commit()
     
-    session.pop('cart', None) # Clear cart after order
+    session.pop('cart', None) 
     flash("Order placed successfully!")
     return redirect(url_for('profile'))
 
 @app.route('/profile')
 @login_required
 def profile():
+    # Using 'orders' as the variable name to match your template
     orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.date_ordered.desc()).all()
     return render_template('profile.html', orders=orders)
 
-# --- ADMIN PANEL LOGIC ---
+# --- ADMIN PANEL ---
 
 @app.route('/admin')
 @login_required
@@ -176,15 +181,21 @@ def admin_panel():
 @login_required
 def admin_add_product():
     if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    
+    # Safety fix for empty price field
+    price_raw = request.form.get('price')
+    price = int(price_raw) if price_raw and price_raw.isdigit() else 0
+    
     new_p = Product(
         name=request.form.get('name'),
-        price=int(request.form.get('price')),
+        price=price,
         image=request.form.get('image'),
         image_2=request.form.get('image_2'),
         description=request.form.get('description')
     )
     db.session.add(new_p)
     db.session.commit()
+    flash("Product Added Successfully!")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/update-status/<int:id>/<string:status>')
@@ -205,8 +216,10 @@ def setup_admin():
         admin = User(full_name="Admin", email="admin@test.gmail.com", password=hashed_pw, is_admin=True)
         db.session.add(admin)
         db.session.commit()
-        return "Admin created!"
+        return "Admin created! Login with admin@test.gmail.com / admin123"
     return "Exists already."
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all() # Ensures database tables exist on startup
     app.run(debug=True, host='0.0.0.0', port=10000)
