@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EVIA Dashboard | Figma Edition</title>
+    <title>EVIA Dashboard | Logistics Control</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -13,8 +13,9 @@
             --bg: #050505; 
             --surface-1: #0f0f12; 
             --surface-2: #18181b;
-            --accent: #00ff88; /* Cyber Green */
+            --accent: #00ff88;
             --border: rgba(255, 255, 255, 0.08);
+            --return: #6f42c1;
         }
 
         body { 
@@ -24,15 +25,14 @@
             height: 100vh; margin: 0; overflow: hidden;
         }
 
-        /* Figma Style Layout */
         .dashboard-container { display: flex; height: 100vh; }
 
-        /* Left Sidebar: Nav */
+        /* Left Sidebar */
         .nav-sidebar { width: 80px; background: var(--surface-1); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 30px 0; }
         .nav-icon { width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 12px; margin-bottom: 25px; color: #666; transition: 0.3s; cursor: pointer; text-decoration: none; }
         .nav-icon:hover, .nav-icon.active { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent); }
 
-        /* Middle Column: Customer List */
+        /* Middle Column */
         .list-panel { width: 360px; background: var(--surface-1); border-right: 1px solid var(--border); overflow-y: auto; padding: 25px; }
         .search-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; color: #fff; width: 100%; margin-bottom: 20px; font-size: 13px; }
 
@@ -40,25 +40,31 @@
             background: var(--surface-2); border: 1px solid var(--border); 
             padding: 16px; border-radius: 16px; margin-bottom: 12px; cursor: pointer; transition: 0.2s;
         }
-        .order-card-sm:hover { border-color: var(--accent); transform: scale(1.02); }
-        .order-card-sm.active { background: #1d1d21; border-color: var(--accent); }
+        .order-card-sm:hover { border-color: var(--accent); }
+        .order-card-sm.active { border-color: var(--accent); background: #1d1d21; }
 
-        /* Right Column: Main Content */
+        /* Status Colors */
+        .stat-badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 5px; margin-top: 5px; display: inline-block; text-transform: uppercase; }
+        .status-placed { background: #333; color: white; }
+        .status-shipped { background: #3366ff; color: white; }
+        .status-delivered { background: var(--accent); color: black; }
+        .status-cancelled { background: #ff4444; color: white; }
+        .status-return { background: var(--return); color: white; }
+
+        /* Right Column */
         .main-content { flex: 1; padding: 40px; overflow-y: auto; background: linear-gradient(135deg, #0a0a0a 0%, #050505 100%); }
         .glass-card { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 30px; padding: 40px; }
 
-        /* Control Buttons */
         .btn-flex { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
         .action-btn { 
             flex: 1; min-width: 140px; padding: 14px; border-radius: 14px; border: none; 
-            font-weight: 700; font-size: 12px; text-transform: uppercase; transition: 0.3s; text-decoration: none; text-align: center;
+            font-weight: 700; font-size: 11px; text-transform: uppercase; transition: 0.3s; text-decoration: none; text-align: center;
         }
         .btn-ship { background: #3366ff; color: white; }
         .btn-out { background: #ffaa00; color: black; }
         .btn-delivered { background: var(--accent); color: black; }
         .btn-cancel { background: #ff4444; color: white; }
-
-        .stat-badge { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 6px; margin-top: 5px; display: inline-block; }
+        .btn-return-action { background: var(--return); color: white; }
     </style>
 </head>
 <body>
@@ -66,29 +72,33 @@
 <div class="dashboard-container">
     <div class="nav-sidebar">
         <a href="/" class="nav-icon"><i class="fa fa-shopping-cart"></i></a>
-        <div class="nav-icon active" onclick="location.reload()"><i class="fa fa-th-large"></i></div>
+        <div class="nav-icon active"><i class="fa fa-th-large"></i></div>
         <div class="nav-icon" data-bs-toggle="modal" data-bs-target="#productModal"><i class="fa fa-plus"></i></div>
         <a href="/logout" class="nav-icon mt-auto text-danger"><i class="fa fa-power-off"></i></a>
     </div>
 
     <div class="list-panel">
-        <h5 class="fw-800 mb-4">Orders <span class="text-muted small">({{ orders|length }})</span></h5>
-        <input type="text" class="search-box" placeholder="Search orders...">
+        <h5 class="fw-800 mb-4">Logistics Feed <span class="text-muted small">({{ orders|length }})</span></h5>
+        <input type="text" id="orderSearch" class="search-box" placeholder="Filter by Name..." onkeyup="filterOrders()">
         
-        {% for o in orders %}
-        <div class="order-card-sm" onclick="viewOrder('{{ o.id }}')">
-            <div class="d-flex justify-content-between align-items-center">
-                <span class="fw-bold">{{ o.customer.full_name }}</span>
-                <span class="small opacity-50">#{{ o.id }}</span>
+        <div id="orderList">
+            {% for o in orders %}
+            <div class="order-card-sm" onclick="viewOrder('{{ o.id }}')" data-name="{{ o.customer.full_name|lower }}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">{{ o.customer.full_name }}</span>
+                    <span class="small opacity-50">#{{ o.id }}</span>
+                </div>
+                <div class="stat-badge status-{{ o.status|lower|replace(' ', '-') }}">
+                    {{ o.status }}
+                </div>
             </div>
-            <div class="stat-badge {% if o.status == 'Delivered' %}bg-success{% else %}bg-primary{% endif %}">{{ o.status|upper }}</div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
 
     <div class="main-content">
         <div id="no-selection" class="text-center mt-5 opacity-25">
-            <i class="fa fa-terminal fa-5x mb-3"></i>
+            <i class="fa fa-microchip fa-5x mb-3"></i>
             <h2>System Ready</h2>
             <p>Select a data node to manage logistics</p>
         </div>
@@ -99,10 +109,10 @@
                 <div class="d-flex justify-content-between mb-5">
                     <div>
                         <h1 class="fw-800 mb-1">{{ o.customer.full_name }}</h1>
-                        <p class="text-muted"><i class="fa fa-clock me-2"></i>{{ o.date_ordered.strftime('%d %b, %Y') }}</p>
+                        <p class="text-muted"><i class="fa fa-calendar-alt me-2"></i>{{ o.date_ordered.strftime('%d %b, %Y') }}</p>
                     </div>
                     <div class="text-end">
-                        <div class="text-muted small fw-bold uppercase">Settlement</div>
+                        <div class="text-muted small fw-bold">Grand Total</div>
                         <h2 class="fw-800" style="color: var(--accent)">₹{{ o.total_price }}</h2>
                     </div>
                 </div>
@@ -110,30 +120,39 @@
                 <div class="row g-4 mb-4">
                     <div class="col-md-6">
                         <div class="p-4 rounded-4" style="background: var(--surface-1)">
-                            <label class="opacity-50 small fw-bold mb-2">WHATSAPP LINK</label>
-                            <a href="https://wa.me/{{ o.whatsapp }}" class="d-block fw-bold text-info text-decoration-none">
+                            <label class="opacity-50 small fw-bold mb-2">COMMUNICATION</label>
+                            <a href="https://wa.me/{{ o.whatsapp }}" target="_blank" class="d-block fw-bold text-info text-decoration-none">
                                 <i class="fab fa-whatsapp me-2"></i>+{{ o.whatsapp }}
                             </a>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="p-4 rounded-4" style="background: var(--surface-1)">
-                            <label class="opacity-50 small fw-bold mb-2">DELIVERY COORDINATES</label>
+                            <label class="opacity-50 small fw-bold mb-2">DESTINATION</label>
                             <div class="small fw-bold">{{ o.address }}</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="p-4 rounded-4 mb-4 border border-secondary border-opacity-25">
-                    <label class="opacity-50 small fw-bold mb-2">INVENTORY LOG</label>
+                    <label class="opacity-50 small fw-bold mb-2">MANIFEST</label>
                     <div class="h5 fw-bold">{{ o.product_details }}</div>
                 </div>
 
                 <div class="btn-flex">
-                    <a href="/admin/update-status/{{ o.id }}/Shipped" class="action-btn btn-ship">Ship Package</a>
-                    <a href="/admin/update-status/{{ o.id }}/Out for Delivery" class="action-btn btn-out">Out for Delivery</a>
-                    <a href="/admin/update-status/{{ o.id }}/Delivered" class="action-btn btn-delivered">Mark Delivered</a>
-                    <a href="/admin/update-status/{{ o.id }}/Cancelled" class="action-btn btn-cancel">Cancel</a>
+                    {% if o.status == 'Return Requested' %}
+                        <a href="/admin/update-status/{{ o.id }}/Returned" class="action-btn btn-return-action">Approve Return (Refunded)</a>
+                        <a href="/admin/update-status/{{ o.id }}/Delivered" class="action-btn btn-cancel">Reject Return</a>
+                    {% elif o.status != 'Cancelled' and o.status != 'Delivered' %}
+                        <a href="/admin/update-status/{{ o.id }}/Shipped" class="action-btn btn-ship">Ship Package</a>
+                        <a href="/admin/update-status/{{ o.id }}/Out for Delivery" class="action-btn btn-out">Out for Delivery</a>
+                        <a href="/admin/update-status/{{ o.id }}/Delivered" class="action-btn btn-delivered">Mark Delivered</a>
+                        <a href="/admin/update-status/{{ o.id }}/Cancelled" class="action-btn btn-cancel">Cancel Order</a>
+                    {% else %}
+                        <div class="alert alert-dark w-100 border-secondary opacity-50 text-center">
+                            Order is in final state: <b>{{ o.status|upper }}</b>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -141,35 +160,7 @@
     </div>
 </div>
 
-<div class="modal fade" id="productModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0" style="background: var(--surface-1); border-radius: 25px;">
-            <div class="modal-body p-5">
-                <h3 class="fw-800 mb-4">Add <span style="color: var(--accent)">Product</span></h3>
-                <form action="/admin/add-product" method="POST">
-                    <div class="mb-3">
-                        <input type="text" name="name" class="search-box mb-0 py-3" placeholder="Product Name" required>
-                    </div>
-                    <div class="mb-3">
-                        <input type="number" name="price" class="search-box mb-0 py-3" placeholder="Price (₹)" required>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <input type="text" name="image" class="search-box mb-0" placeholder="Main Image URL" required>
-                        </div>
-                        <div class="col-6">
-                            <input type="text" name="image_2" class="search-box mb-0" placeholder="Second Image URL">
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <textarea name="description" class="search-box mb-0" rows="3" placeholder="Description Details"></textarea>
-                    </div>
-                    <button type="submit" class="action-btn btn-delivered w-100 py-3">SAVE TO COLLECTION</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+<div class="modal fade" id="productModal" tabindex="-1">...</div>
 
 <script>
     function viewOrder(id) {
@@ -178,6 +169,15 @@
         document.getElementById('detail-' + id).classList.remove('d-none');
         document.querySelectorAll('.order-card-sm').forEach(el => el.classList.remove('active'));
         event.currentTarget.classList.add('active');
+    }
+
+    function filterOrders() {
+        let input = document.getElementById('orderSearch').value.toLowerCase();
+        let cards = document.querySelectorAll('.order-card-sm');
+        cards.forEach(card => {
+            let name = card.getAttribute('data-name');
+            card.style.display = name.includes(input) ? "block" : "none";
+        });
     }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
