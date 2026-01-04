@@ -6,9 +6,9 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'evia_official_secure_2025'
+app.config['SECRET_KEY'] = 'evia_premium_secret_2026'
 
-# --- DATABASE CONFIG ---
+# --- DATABASE CONFIGURATION ---
 database_url = os.environ.get("DATABASE_URL", "sqlite:///evia.db")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -25,7 +25,6 @@ class User(db.Model, UserMixin):
     full_name = db.Column(db.String(150))
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(500), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
     orders = db.relationship('Order', backref='customer', lazy=True)
 
 class Product(db.Model):
@@ -43,14 +42,14 @@ class Order(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     whatsapp = db.Column(db.String(20))
     address = db.Column(db.Text)
-    status = db.Column(db.String(50), default="Placed") 
+    status = db.Column(db.String(50), default="Placed") # Placed, Shipped, Out for Delivery, Delivered, Cancelled, Return Requested
     date_ordered = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- SHOP & SEARCH ---
+# --- MAIN ROUTES ---
 @app.route('/')
 def index():
     q = request.args.get('q')
@@ -60,7 +59,12 @@ def index():
         products = Product.query.all()
     return render_template('index.html', products=products)
 
-# --- CART SYSTEM ---
+@app.route('/product/<int:id>')
+def product_detail(id):
+    product = Product.query.get_or_404(id)
+    return render_template('product_detail.html', product=product)
+
+# --- CART LOGIC ---
 @app.route('/add-to-cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session: session['cart'] = []
@@ -68,21 +72,13 @@ def add_to_cart(id):
     cart.append(id)
     session['cart'] = cart
     session.modified = True
+    flash("Item added to bag")
     return redirect(url_for('index'))
 
 @app.route('/buy-now/<int:id>')
 def buy_now(id):
     session['cart'] = [id]
     session.modified = True
-    return redirect(url_for('cart'))
-
-@app.route('/remove-from-cart/<int:id>')
-def remove_from_cart(id):
-    if 'cart' in session:
-        cart = list(session['cart'])
-        if id in cart: cart.remove(id)
-        session['cart'] = cart
-        session.modified = True
     return redirect(url_for('cart'))
 
 @app.route('/cart')
@@ -92,7 +88,7 @@ def cart():
     total = sum(i.price for i in items)
     return render_template('cart.html', items=items, total=total)
 
-# --- CHECKOUT LOGIC ---
+# --- CHECKOUT ---
 @app.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
@@ -100,7 +96,7 @@ def checkout():
     if not cart_ids: return redirect(url_for('index'))
     
     items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
-    details = ", ".join([f"{i.name} (₹{i.price})" for i in items])
+    details = ", ".join([i.name for i in items])
     total = sum(i.price for i in items)
     
     order = Order(
@@ -114,43 +110,80 @@ def checkout():
     db.session.commit()
     
     session.pop('cart', None)
-    # Redirect to a success page with order details
     return render_template('checkout.html', order=order)
 
+# --- USER PROFILE & ORDER ACTIONS ---
 @app.route('/profile')
 @login_required
 def profile():
     orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.date_ordered.desc()).all()
     return render_template('profile.html', orders=orders)
 
-# --- ADMIN PANEL ---
+@app.route('/cancel-order/<int:id>')
+@login_required
+def cancel_order(id):
+    order = Order.query.filter_by(id=id, user_id=current_user.id).first_or_404()
+    if order.status in ["Placed", "Pending"]:
+        order.status = "Cancelled"
+        db.session.commit()
+        flash("Order cancelled.")
+    else:
+        flash("Order cannot be cancelled at this stage.")
+    return redirect(url_for('profile'))
+
+@app.route('/request-return/<int:id>')
+@login_required
+def request_return(id):
+    order = Order.query.filter_by(id=id, user_id=current_user.id).first_or_404()
+    if order.status == "Delivered":
+        order.status = "Return Requested"
+        db.session.commit()
+        flash("Return request submitted.")
+    return redirect(url_for('profile'))
+
+# --- ADMIN DASHBOARD ROUTES ---
 @app.route('/admin')
 @login_required
 def admin_panel():
-    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    if current_user.email != 'admin@test.gmail.com': 
+        return "Access Denied", 403
     orders = Order.query.order_by(Order.date_ordered.desc()).all()
     products = Product.query.all()
-    revenue = sum(o.total_price for o in orders if o.status != 'Cancelled')
-    return render_template('admin.html', orders=orders, products=products, revenue=revenue)
+    return render_template('admin.html', orders=orders, products=products)
 
-@app.route('/admin/delete-product/<int:id>')
+@app.route('/admin/update-status/<int:id>/<string:status>')
 @login_required
-def delete_product(id):
+def update_status(id, status):
     if current_user.email != 'admin@test.gmail.com': return "Denied", 403
-    p = Product.query.get(id)
-    if p:
-        db.session.delete(p)
-        db.session.commit()
+    order = Order.query.get_or_404(id)
+    order.status = status
+    db.session.commit()
     return redirect(url_for('admin_panel'))
 
-# --- AUTH ---
+@app.route('/admin/add-product', methods=['POST'])
+@login_required
+def add_product():
+    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    new_p = Product(
+        name=request.form.get('name'),
+        price=int(request.form.get('price')),
+        image=request.form.get('image'),
+        image_2=request.form.get('image_2'),
+        description=request.form.get('description')
+    )
+    db.session.add(new_p)
+    db.session.commit()
+    return redirect(url_for('admin_panel'))
+
+# --- AUTHENTICATION ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         user = User.query.filter_by(email=request.form.get('email')).first()
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
-            return redirect(url_for('admin_panel' if user.email == 'admin@test.gmail.com' else 'index'))
+            return redirect(url_for('index'))
+        flash("Invalid credentials")
     return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -169,16 +202,7 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-@app.route('/setup')
-def setup():
-    db.create_all()
-    if not User.query.filter_by(email='admin@test.gmail.com').first():
-        admin = User(full_name="Admin", email="admin@test.gmail.com", 
-                     password=generate_password_hash('admin123', method='pbkdf2:sha256'), is_admin=True)
-        db.session.add(admin)
-        db.session.commit()
-    return "Ready!"
-
 if __name__ == '__main__':
-    with app.app_context(): db.create_all()
+    with app.app_context():
+        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=10000)
