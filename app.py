@@ -9,7 +9,8 @@ app = Flask(__name__)
 
 # --- 1. CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_final_secret_2026')
-database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v10.db")
+# Updated database version to v11 for fresh schema
+database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v11.db")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
@@ -39,7 +40,7 @@ class Order(db.Model):
     product_details = db.Column(db.Text)
     total_price = db.Column(db.Integer)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    status = db.Column(db.String(50), default="Placed")
+    status = db.Column(db.String(50), default="Placed") # Placed, Shipped, Delivered, Cancelled
     date_ordered = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 @login_manager.user_loader
@@ -57,7 +58,6 @@ def index():
     if not isinstance(cart, list): cart = []
     return render_template('index.html', products=products, cart_count=len(cart))
 
-# THIS FIXES THE LOG ERROR (product_detail)
 @app.route('/product/<int:id>')
 def product_detail(id):
     product = Product.query.get_or_404(id)
@@ -72,6 +72,7 @@ def add_to_cart(id):
     cart.append(id)
     session['cart'] = cart
     session.modified = True 
+    flash("Added to bag")
     return redirect(url_for('index'))
 
 @app.route('/buy-now/<int:id>')
@@ -87,7 +88,6 @@ def cart_view():
     total = sum(i.price for i in items)
     return render_template('cart.html', items=items, total=total)
 
-# THIS FIXES THE PREVIOUS LOG ERROR (remove_from_cart)
 @app.route('/remove-from-cart/<int:id>')
 def remove_from_cart(id):
     if 'cart' in session:
@@ -107,18 +107,59 @@ def checkout():
     items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
     details = ", ".join([p.name for p in items])
     total = sum(p.price for p in items)
+    
     new_order = Order(product_details=details, total_price=total, user_id=current_user.id)
     db.session.add(new_order)
     db.session.commit()
     session.pop('cart', None)
+    flash("Order Placed!")
     return redirect(url_for('profile'))
 
-# --- 6. USER & ADMIN ---
+# --- 6. ADMIN ACTIONS (UPDATED) ---
+
+@app.route('/admin')
+@login_required
+def admin_panel():
+    if current_user.email != 'admin@test.gmail.com':
+        return "Access Denied", 403
+    orders = Order.query.order_by(Order.date_ordered.desc()).all()
+    return render_template('admin.html', orders=orders)
+
+@app.route('/admin/add-product', methods=['POST'])
+@login_required
+def add_product():
+    if current_user.email != 'admin@test.gmail.com':
+        return "Access Denied", 403
+    
+    name = request.form.get('name')
+    price = request.form.get('price')
+    image = request.form.get('image')
+    description = request.form.get('description')
+    
+    new_p = Product(name=name, price=int(price), image=image, description=description)
+    db.session.add(new_p)
+    db.session.commit()
+    flash("New product added successfully!")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/update-status/<int:id>/<string:new_status>')
+@login_required
+def update_status(id, new_status):
+    if current_user.email != 'admin@test.gmail.com':
+        return "Access Denied", 403
+    
+    order = Order.query.get_or_404(id)
+    order.status = new_status
+    db.session.commit()
+    flash(f"Order #{id} updated to {new_status}")
+    return redirect(url_for('admin_panel'))
+
+# --- 7. AUTHENTICATION ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=pw)
+        hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
+        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=hashed_pw)
         db.session.add(new_user)
         db.session.commit()
         login_user(new_user)
@@ -132,6 +173,7 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('index'))
+        flash("Invalid Credentials")
     return render_template('login.html')
 
 @app.route('/profile')
@@ -139,12 +181,6 @@ def login():
 def profile():
     orders = Order.query.filter_by(user_id=current_user.id).all()
     return render_template('profile.html', orders=orders)
-
-@app.route('/admin')
-@login_required
-def admin_panel():
-    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
-    return render_template('admin.html', orders=Order.query.all())
 
 @app.route('/logout')
 def logout():
