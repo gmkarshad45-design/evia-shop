@@ -7,11 +7,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
-# --- CONFIGURATION ---
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_secret_9988')
-# Detect if running on Render (Postgres) or Local (SQLite)
-database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final.db")
-if database_url.startswith("postgres://"):
+# --- 1. CONFIGURATION (Render & Local) ---
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_premium_secret_2026')
+
+# Handles both local SQLite and Render's PostgreSQL
+database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_fixed.db")
+if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -20,7 +21,7 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# --- MODELS ---
+# --- 2. DATABASE MODELS ---
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(150))
@@ -43,56 +44,59 @@ class Order(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     whatsapp = db.Column(db.String(20))
     address = db.Column(db.Text)
-    status = db.Column(db.String(50), default="Placed") 
+    status = db.Column(db.String(50), default="Placed") # Placed, Shipped, Out for Delivery, Delivered, Cancelled
     date_ordered = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- AUTO-DATABASE INIT ---
+# --- 3. AUTO-INIT DATABASE ---
 with app.app_context():
     db.create_all()
 
-# --- MAIN ROUTES ---
+# --- 4. PRODUCT & SHOPPING ROUTES ---
 @app.route('/')
 def index():
     products = Product.query.all()
     return render_template('index.html', products=products)
 
-# --- CART LOGIC (FIXED 500 ERROR) ---
+@app.route('/product/<int:id>')
+def product_detail(id):
+    product = Product.query.get_or_404(id)
+    return render_template('product_detail.html', product=product)
+
 @app.route('/add-to-cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session:
         session['cart'] = []
-    cart = list(session['cart']) # Force copy
+    cart = list(session['cart'])
     cart.append(id)
     session['cart'] = cart
     session.modified = True 
-    flash("Item added to bag!")
+    flash("Item added to bag")
     return redirect(url_for('index'))
 
-# --- AUTH ROUTES ---
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        user = User.query.filter_by(email=request.form.get('email')).first()
-        if user and check_password_hash(user.password, request.form.get('password')):
-            login_user(user)
-            return redirect(url_for('index'))
-        flash("Invalid Credentials")
-    return render_template('login.html')
+@app.route('/cart')
+def cart():
+    cart_ids = session.get('cart', [])
+    items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
+    total = sum(i.price for i in items)
+    return render_template('cart.html', items=items, total=total)
 
+# --- 5. AUTHENTICATION (SIGN UP / LOGIN) ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        if User.query.filter_by(email=request.form.get('email')).first():
+        email = request.form.get('email')
+        if User.query.filter_by(email=email).first():
             flash("Email already registered")
             return redirect(url_for('signup'))
+        
         hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
         new_user = User(
             full_name=request.form.get('full_name'),
-            email=request.form.get('email'),
+            email=email,
             password=hashed_pw
         )
         db.session.add(new_user)
@@ -101,12 +105,22 @@ def signup():
         return redirect(url_for('index'))
     return render_template('signup.html')
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user = User.query.filter_by(email=request.form.get('email')).first()
+        if user and check_password_hash(user.password, request.form.get('password')):
+            login_user(user)
+            return redirect(url_for('index'))
+        flash("Invalid login credentials")
+    return render_template('login.html')
+
 @app.route('/logout')
 def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- PROFILE & ORDER TRACKING ---
+# --- 6. USER PROFILE & TRACKING ---
 @app.route('/profile')
 @login_required
 def profile():
@@ -120,6 +134,7 @@ def cancel_order(id):
     if order.status in ["Placed", "Pending"]:
         order.status = "Cancelled"
         db.session.commit()
+        flash("Order cancelled.")
     return redirect(url_for('profile'))
 
 @app.route('/request-return/<int:id>')
@@ -129,14 +144,15 @@ def request_return(id):
     if order.status == "Delivered":
         order.status = "Return Requested"
         db.session.commit()
+        flash("Return request submitted.")
     return redirect(url_for('profile'))
 
-# --- ADMIN PANEL CONTROL ---
+# --- 7. ADMIN PANEL ---
 @app.route('/admin')
 @login_required
 def admin_panel():
-    if current_user.email != 'admin@test.gmail.com': 
-        return "Unauthorized", 403
+    if current_user.email != 'admin@test.gmail.com':
+        return "Access Denied", 403
     orders = Order.query.order_by(Order.date_ordered.desc()).all()
     products = Product.query.all()
     return render_template('admin.html', orders=orders, products=products)
@@ -150,5 +166,8 @@ def update_status(id, status):
     db.session.commit()
     return redirect(url_for('admin_panel'))
 
+# --- 8. PORT BINDING (FOR RENDER) ---
 if __name__ == '__main__':
-    app.run(debug=False)
+    # Listen on port 10000 by default, or the port assigned by Render
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port, debug=False)
