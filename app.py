@@ -8,8 +8,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 
 # --- 1. CONFIGURATION ---
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_premium_2026')
-database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_v9.db")
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_final_secret_2026')
+database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v10.db")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
@@ -49,17 +49,25 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
-# --- 3. ROUTES ---
+# --- 3. MAIN ROUTES ---
 @app.route('/')
 def index():
     products = Product.query.all()
     cart = session.get('cart', [])
+    if not isinstance(cart, list): cart = []
     return render_template('index.html', products=products, cart_count=len(cart))
 
-# --- 4. CART LOGIC (FIXED) ---
+# THIS FIXES THE LOG ERROR (product_detail)
+@app.route('/product/<int:id>')
+def product_detail(id):
+    product = Product.query.get_or_404(id)
+    return render_template('product_detail.html', product=product)
+
+# --- 4. CART & BUY LOGIC ---
 @app.route('/add-to-cart/<int:id>')
 def add_to_cart(id):
-    if 'cart' not in session: session['cart'] = []
+    if 'cart' not in session or not isinstance(session['cart'], list):
+        session['cart'] = []
     cart = list(session['cart'])
     cart.append(id)
     session['cart'] = cart
@@ -75,16 +83,11 @@ def buy_now(id):
 @app.route('/cart')
 def cart_view():
     cart_ids = session.get('cart', [])
-    items = []
-    total = 0
-    for p_id in cart_ids:
-        p = Product.query.get(p_id)
-        if p:
-            items.append(p)
-            total += p.price
+    items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
+    total = sum(i.price for i in items)
     return render_template('cart.html', items=items, total=total)
 
-# ADDED THIS TO FIX YOUR LOG ERROR:
+# THIS FIXES THE PREVIOUS LOG ERROR (remove_from_cart)
 @app.route('/remove-from-cart/<int:id>')
 def remove_from_cart(id):
     if 'cart' in session:
@@ -101,27 +104,16 @@ def remove_from_cart(id):
 def checkout():
     cart_ids = session.get('cart', [])
     if not cart_ids: return redirect(url_for('index'))
-    
     items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
     details = ", ".join([p.name for p in items])
     total = sum(p.price for p in items)
-    
     new_order = Order(product_details=details, total_price=total, user_id=current_user.id)
     db.session.add(new_order)
     db.session.commit()
     session.pop('cart', None)
     return redirect(url_for('profile'))
 
-# --- 6. AUTH & PROFILE ---
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        user = User.query.filter_by(email=request.form.get('email')).first()
-        if user and check_password_hash(user.password, request.form.get('password')):
-            login_user(user)
-            return redirect(url_for('index'))
-    return render_template('login.html')
-
+# --- 6. USER & ADMIN ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -133,22 +125,31 @@ def signup():
         return redirect(url_for('index'))
     return render_template('signup.html')
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user = User.query.filter_by(email=request.form.get('email')).first()
+        if user and check_password_hash(user.password, request.form.get('password')):
+            login_user(user)
+            return redirect(url_for('index'))
+    return render_template('login.html')
+
 @app.route('/profile')
 @login_required
 def profile():
     orders = Order.query.filter_by(user_id=current_user.id).all()
     return render_template('profile.html', orders=orders)
 
-@app.route('/logout')
-def logout():
-    logout_user()
-    return redirect(url_for('index'))
-
 @app.route('/admin')
 @login_required
 def admin_panel():
     if current_user.email != 'admin@test.gmail.com': return "Denied", 403
     return render_template('admin.html', orders=Order.query.all())
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
