@@ -9,8 +9,8 @@ app = Flask(__name__)
 
 # --- 1. CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_final_secret_2026')
-# Updated database version to v11 for fresh schema
-database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v11.db")
+# Bumping to v12 to force the new columns (address/whatsapp) to be created
+database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v12.db")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
@@ -40,7 +40,12 @@ class Order(db.Model):
     product_details = db.Column(db.Text)
     total_price = db.Column(db.Integer)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    status = db.Column(db.String(50), default="Placed") # Placed, Shipped, Delivered, Cancelled
+    status = db.Column(db.String(50), default="Placed")
+    
+    # NEW COLUMNS ADDED HERE TO FIX THE ADMIN ERROR
+    address = db.Column(db.Text)
+    whatsapp = db.Column(db.String(20))
+    
     date_ordered = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 @login_manager.user_loader
@@ -98,25 +103,38 @@ def remove_from_cart(id):
             session.modified = True
     return redirect(url_for('cart_view'))
 
-# --- 5. CHECKOUT ---
+# --- 5. CHECKOUT (UPDATED TO SAVE ADDRESS) ---
 @app.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
     cart_ids = session.get('cart', [])
-    if not cart_ids: return redirect(url_for('index'))
+    if not cart_ids: 
+        return redirect(url_for('index'))
+        
+    # Get form data from cart.html
+    user_address = request.form.get('address')
+    user_whatsapp = request.form.get('whatsapp')
+    
     items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
     details = ", ".join([p.name for p in items])
     total = sum(p.price for p in items)
     
-    new_order = Order(product_details=details, total_price=total, user_id=current_user.id)
+    # Save order with address and whatsapp
+    new_order = Order(
+        product_details=details, 
+        total_price=total, 
+        user_id=current_user.id,
+        address=user_address,
+        whatsapp=user_whatsapp
+    )
+    
     db.session.add(new_order)
     db.session.commit()
     session.pop('cart', None)
-    flash("Order Placed!")
+    flash("Order Placed Successfully!")
     return redirect(url_for('profile'))
 
-# --- 6. ADMIN ACTIONS (UPDATED) ---
-
+# --- 6. ADMIN ACTIONS ---
 @app.route('/admin')
 @login_required
 def admin_panel():
@@ -130,16 +148,13 @@ def admin_panel():
 def add_product():
     if current_user.email != 'admin@test.gmail.com':
         return "Access Denied", 403
-    
     name = request.form.get('name')
     price = request.form.get('price')
     image = request.form.get('image')
     description = request.form.get('description')
-    
     new_p = Product(name=name, price=int(price), image=image, description=description)
     db.session.add(new_p)
     db.session.commit()
-    flash("New product added successfully!")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/update-status/<int:id>/<string:new_status>')
@@ -147,11 +162,9 @@ def add_product():
 def update_status(id, new_status):
     if current_user.email != 'admin@test.gmail.com':
         return "Access Denied", 403
-    
     order = Order.query.get_or_404(id)
     order.status = new_status
     db.session.commit()
-    flash(f"Order #{id} updated to {new_status}")
     return redirect(url_for('admin_panel'))
 
 # --- 7. AUTHENTICATION ---
@@ -179,7 +192,7 @@ def login():
 @app.route('/profile')
 @login_required
 def profile():
-    orders = Order.query.filter_by(user_id=current_user.id).all()
+    orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.date_ordered.desc()).all()
     return render_template('profile.html', orders=orders)
 
 @app.route('/logout')
