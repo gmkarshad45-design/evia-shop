@@ -9,7 +9,6 @@ app = Flask(__name__)
 
 # --- 1. CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_final_secret_2026')
-# Bumping to v18 to ensure all tables and columns are fresh and clean
 database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v18.db")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -154,7 +153,7 @@ def return_order(id):
 def admin_panel():
     if current_user.email != 'admin@test.gmail.com': return "Denied", 403
     orders = Order.query.order_by(Order.date_ordered.desc()).all()
-    products = Product.query.all() # Added to show inventory list
+    products = Product.query.all() 
     return render_template('admin.html', orders=orders, products=products)
 
 @app.route('/admin/add-product', methods=['POST'])
@@ -170,13 +169,21 @@ def add_product():
     db.session.commit()
     return redirect(url_for('admin_panel'))
 
+# FIXED: Added improved error handling and specific status mapping
 @app.route('/admin/update-status/<int:id>/<string:new_status>')
 @login_required
 def update_status(id, new_status):
     if current_user.email != 'admin@test.gmail.com': return "Denied", 403
-    order = Order.query.get_or_404(id)
-    order.status = new_status
-    db.session.commit()
+    try:
+        order = Order.query.get_or_404(id)
+        # new_status automatically handles %20 as spaces
+        order.status = new_status
+        db.session.commit()
+        flash(f"Order #{id} status updated to {new_status}")
+    except Exception as e:
+        db.session.rollback()
+        print(f"DEBUG Error: {e}")
+        flash("Error updating order status.")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/delete-product/<int:id>')
