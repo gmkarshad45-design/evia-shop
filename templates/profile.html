@@ -111,7 +111,7 @@
                        onclick="return confirm('Are you sure you want to cancel this order?')">CANCEL</a>
                     
                     {% elif order.status == "Delivered" %}
-                    <a href="{{ url_for('request_return', id=order.id) }}" 
+                    <a href="{{ url_for('return_order', id=order.id) }}" 
                        class="btn btn-sm btn-outline-dark fw-bold rounded-pill px-3">RETURN</a>
                     {% endif %}
 
