@@ -9,7 +9,7 @@ app = Flask(__name__)
 
 # --- 1. CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_final_secret_2026')
-# Version v14: Added image_2 for dual-image product scroll
+# v14 ensures all columns (address, whatsapp) are created fresh
 database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v14.db")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -26,15 +26,13 @@ class User(db.Model, UserMixin):
     full_name = db.Column(db.String(150))
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(500), nullable=False)
-    phone = db.Column(db.String(20)) # Added for WhatsApp logistics
     orders = db.relationship('Order', backref='customer', lazy=True)
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    image = db.Column(db.String(500))    # Main Image
-    image_2 = db.Column(db.String(500))  # Second Image for Right Scroll
+    image = db.Column(db.String(500))
     description = db.Column(db.Text)
 
 class Order(db.Model):
@@ -67,7 +65,7 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# --- 4. CART & BUY LOGIC ---
+# --- 4. CART & BUY LOGIC (THE FIX) ---
 @app.route('/add-to-cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session or not isinstance(session['cart'], list):
@@ -76,10 +74,14 @@ def add_to_cart(id):
     cart.append(id)
     session['cart'] = cart
     session.modified = True 
-    
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return '', 204 # Returns success for AJAX
     return redirect(url_for('index'))
+
+@app.route('/buy-now/<int:id>')
+def buy_now(id):
+    """Restored this function to fix the BuildError in index.html"""
+    session['cart'] = [id]
+    session.modified = True
+    return redirect(url_for('cart_view'))
 
 @app.route('/cart')
 def cart_view():
@@ -119,16 +121,34 @@ def checkout():
         address=user_address,
         whatsapp=user_whatsapp
     )
-    # Also update user profile with WhatsApp for future orders
-    current_user.phone = user_whatsapp
-    
     db.session.add(new_order)
     db.session.commit()
     session.pop('cart', None)
     flash("Order Placed Successfully!")
     return redirect(url_for('profile'))
 
-# --- 6. ADMIN ---
+# --- 6. USER ORDER ACTIONS ---
+@app.route('/cancel-order/<int:id>')
+@login_required
+def cancel_order(id):
+    order = Order.query.get_or_404(id)
+    if order.user_id == current_user.id and order.status == "Placed":
+        order.status = "Cancelled"
+        db.session.commit()
+        flash("Order cancelled.")
+    return redirect(url_for('profile'))
+
+@app.route('/return-order/<int:id>')
+@login_required
+def return_order(id):
+    order = Order.query.get_or_404(id)
+    if order.user_id == current_user.id and order.status == "Delivered":
+        order.status = "Return Requested"
+        db.session.commit()
+        flash("Return request sent.")
+    return redirect(url_for('profile'))
+
+# --- 7. ADMIN ---
 @app.route('/admin')
 @login_required
 def admin_panel():
@@ -138,14 +158,12 @@ def admin_panel():
 
 @app.route('/admin/add-product', methods=['POST'])
 @login_required
-def admin_add_product():
+def add_product():
     if current_user.email != 'admin@test.gmail.com': return "Denied", 403
-    
     new_p = Product(
         name=request.form.get('name'), 
         price=int(request.form.get('price')), 
-        image=request.form.get('image'),
-        image_2=request.form.get('image_2'), # Support for second image URL
+        image=request.form.get('image'), 
         description=request.form.get('description')
     )
     db.session.add(new_p)
@@ -161,7 +179,7 @@ def update_status(id, new_status):
     db.session.commit()
     return redirect(url_for('admin_panel'))
 
-# --- 7. AUTH ---
+# --- 8. AUTH ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -169,19 +187,13 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('index'))
-        flash("Invalid Credentials")
     return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(
-            full_name=request.form.get('full_name'), 
-            email=request.form.get('email'), 
-            password=pw,
-            phone=request.form.get('whatsapp') # Catch phone during signup
-        )
+        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=pw)
         db.session.add(new_user)
         db.session.commit()
         login_user(new_user)
