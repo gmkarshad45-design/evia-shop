@@ -9,8 +9,8 @@ app = Flask(__name__)
 
 # --- 1. CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_final_secret_2026')
-# v14 ensures all columns (address, whatsapp) are created fresh
-database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v14.db")
+# Bumping to v17 to ensure all tables and columns are fresh and clean
+database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v17.db")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
@@ -65,7 +65,7 @@ def product_detail(id):
     product = Product.query.get_or_404(id)
     return render_template('product_detail.html', product=product)
 
-# --- 4. CART & BUY LOGIC (THE FIX) ---
+# --- 4. CART & BUY LOGIC ---
 @app.route('/add-to-cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session or not isinstance(session['cart'], list):
@@ -74,11 +74,11 @@ def add_to_cart(id):
     cart.append(id)
     session['cart'] = cart
     session.modified = True 
+    flash("Added to bag")
     return redirect(url_for('index'))
 
 @app.route('/buy-now/<int:id>')
 def buy_now(id):
-    """Restored this function to fix the BuildError in index.html"""
     session['cart'] = [id]
     session.modified = True
     return redirect(url_for('cart_view'))
@@ -160,26 +160,47 @@ def admin_panel():
 @login_required
 def add_product():
     if current_user.email != 'admin@test.gmail.com': return "Denied", 403
-    new_p = Product(
-        name=request.form.get('name'), 
-        price=int(request.form.get('price')), 
-        image=request.form.get('image'), 
-        description=request.form.get('description')
-    )
+    name = request.form.get('name')
+    price = request.form.get('price')
+    image = request.form.get('image')
+    description = request.form.get('description')
+    new_p = Product(name=name, price=int(price), image=image, description=description)
     db.session.add(new_p)
     db.session.commit()
     return redirect(url_for('admin_panel'))
 
-@app.route('/admin/update-status/<int:id>/<string:new_status>')
-@login_required
-def update_status(id, new_status):
-    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
-    order = Order.query.get_or_404(id)
-    order.status = new_status
-    db.session.commit()
-    return redirect(url_for('admin_panel'))
+# --- 8. AUTHENTICATION (FIXED SIGNUP) ---
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        full_name = request.form.get('full_name')
+        password = request.form.get('password')
 
-# --- 8. AUTH ---
+        # 1. CHECK IF USER ALREADY EXISTS
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash("Email already registered. Please login.")
+            return redirect(url_for('login'))
+
+        # 2. TRY TO CREATE USER
+        try:
+            hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
+            new_user = User(full_name=full_name, email=email, password=hashed_pw)
+            db.session.add(new_user)
+            db.session.commit()
+            
+            login_user(new_user)
+            flash("Account created successfully!")
+            return redirect(url_for('index'))
+        except Exception as e:
+            db.session.rollback() # Important: clears the error so the next request works
+            print(f"DEBUG: Signup error - {e}")
+            flash("An error occurred during signup. Please try again.")
+            return redirect(url_for('signup'))
+
+    return render_template('signup.html')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -187,18 +208,8 @@ def login():
         if user and check_password_hash(user.password, request.form.get('password')):
             login_user(user)
             return redirect(url_for('index'))
+        flash("Invalid Credentials")
     return render_template('login.html')
-
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
-        new_user = User(full_name=request.form.get('full_name'), email=request.form.get('email'), password=pw)
-        db.session.add(new_user)
-        db.session.commit()
-        login_user(new_user)
-        return redirect(url_for('index'))
-    return render_template('signup.html')
 
 @app.route('/profile')
 @login_required
