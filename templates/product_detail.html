@@ -7,11 +7,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { font-family: 'Inter', sans-serif; background: #ffffff; color: #111; padding-bottom: 90px; margin: 0; }
+        body { font-family: 'Inter', sans-serif; background: #ffffff; color: #111; padding-bottom: 100px; margin: 0; }
         
+        /* Navigation */
         .back-nav { 
-            padding: 12px 15px; 
-            border-bottom: 1px solid #eee; 
+            padding: 15px; 
+            border-bottom: 1px solid #f1f1f1; 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
@@ -21,70 +22,114 @@
             z-index: 1100;
         }
 
-        .scroll-container { position: relative; width: 100%; background: #fff; }
+        /* Fixed Horizontal Image Slider */
+        .scroll-container { 
+            position: relative; 
+            width: 100%; 
+            background: #fff; 
+            overflow: hidden; 
+        }
+        
         .scroll-wrapper {
             display: flex;
             overflow-x: auto;
+            overflow-y: hidden;
             scroll-snap-type: x mandatory;
             scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
         }
+        
         .scroll-wrapper::-webkit-scrollbar { display: none; }
 
         .scroll-item {
             flex: 0 0 100%;
             width: 100%;
-            height: 350px;
+            height: 450px; /* Adjusted for better mobile view */
             scroll-snap-align: start;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 10px;
         }
-        .scroll-item img { max-width: 100%; max-height: 100%; object-fit: contain; }
-
-        .scroll-dots { display: flex; justify-content: center; gap: 6px; padding: 10px 0; }
-        .dot { width: 6px; height: 6px; background: #e0e0e0; border-radius: 50%; transition: 0.3s; }
-        .dot.active { background: #000; width: 12px; border-radius: 10px; }
-
-        .brand-tag { font-size: 10px; font-weight: 800; color: #999; text-transform: uppercase; letter-spacing: 1px; }
-        .product-name { font-weight: 800; font-size: 1.3rem; margin: 5px 0; }
-        .price-section { font-size: 1.2rem; font-weight: 800; color: #000; margin-bottom: 20px; }
-
-        .pincode-box { background: #f8f8f8; border: 1px solid #efefef; border-radius: 10px; padding: 15px; }
-        .pin-label { font-size: 10px; font-weight: 800; color: #666; margin-bottom: 8px; }
-        .pin-input-group { display: flex; gap: 8px; }
-        .pin-input { flex: 1; height: 38px; border: 1px solid #ddd; border-radius: 5px; padding: 0 12px; font-size: 13px; }
-        .pin-btn { background: #000; color: #fff; border: none; padding: 0 15px; border-radius: 5px; font-size: 11px; font-weight: 700; }
         
+        .scroll-item img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+        }
+
+        /* Slider Dots Overlay */
+        .scroll-dots { 
+            display: flex; 
+            justify-content: center; 
+            gap: 8px; 
+            position: absolute; 
+            bottom: 20px; 
+            width: 100%; 
+            z-index: 10;
+        }
+        
+        .dot { 
+            width: 8px; 
+            height: 8px; 
+            background: rgba(255,255,255,0.5); 
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 50%; 
+            transition: 0.3s; 
+        }
+        
+        .dot.active { 
+            background: #000; 
+            width: 22px; 
+            border-radius: 10px; 
+            border: none;
+        }
+
+        /* Product Info */
+        .brand-tag { font-size: 10px; font-weight: 800; color: #aaa; text-transform: uppercase; letter-spacing: 2px; }
+        .product-name { font-weight: 800; font-size: 1.6rem; margin: 5px 0; letter-spacing: -0.5px; }
+        .price-section { font-size: 1.4rem; font-weight: 800; color: #000; margin-bottom: 20px; }
+
+        /* Pincode Section */
+        .pincode-box { background: #f8f8f8; border-radius: 15px; padding: 20px; border: 1px solid #eee; }
+        .pin-label { font-size: 11px; font-weight: 800; color: #555; margin-bottom: 12px; }
+        .pin-input-group { display: flex; gap: 10px; }
+        .pin-input { flex: 1; height: 45px; border: 1px solid #ddd; border-radius: 10px; padding: 0 15px; font-size: 14px; outline: none; transition: 0.3s; }
+        .pin-input:focus { border-color: #000; }
+        .pin-btn { background: #000; color: #fff; border: none; padding: 0 20px; border-radius: 10px; font-size: 12px; font-weight: 700; }
+        
+        /* Fixed Bottom Bar */
         .bottom-bar {
             position: fixed; bottom: 0; left: 0; right: 0;
-            background: #fff; padding: 12px 15px;
+            background: #fff; padding: 15px 20px;
             border-top: 1px solid #eee; z-index: 1000;
-            display: flex; gap: 10px;
+            display: flex; gap: 12px;
         }
         .cart-btn {
-            flex: 1; height: 48px; border-radius: 8px;
+            flex: 1; height: 55px; border-radius: 12px;
             background: #fff; color: #000; border: 2px solid #000;
-            font-weight: 800; font-size: 13px; cursor: pointer;
+            font-weight: 800; font-size: 14px; transition: 0.2s;
         }
+        .cart-btn:active { transform: scale(0.96); }
         .buy-btn-split {
-            flex: 1; height: 48px; border-radius: 8px;
+            flex: 1; height: 55px; border-radius: 12px;
             background: #ff9f00; color: #fff; border: none;
-            font-weight: 800; font-size: 13px; text-decoration: none;
-            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 14px; text-decoration: none;
+            display: flex; align-items: center; justify-content: center; transition: 0.2s;
         }
+        .buy-btn-split:active { transform: scale(0.96); }
 
+        /* Notification Toast */
         #cart-toast {
-            visibility: hidden; min-width: 200px; background-color: #333;
-            color: #fff; text-align: center; border-radius: 50px; padding: 12px;
+            visibility: hidden; min-width: 250px; background-color: #1a1a1a;
+            color: #fff; text-align: center; border-radius: 12px; padding: 16px;
             position: fixed; z-index: 2000; bottom: 100px; left: 50%;
-            transform: translateX(-50%); font-size: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transform: translateX(-50%); font-size: 14px; font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
         #cart-toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
 
-        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 100px; opacity: 1;} }
-        @keyframes fadeout { from {bottom: 100px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        @keyframes fadein { from {bottom: 70px; opacity: 0;} to {bottom: 100px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 100px; opacity: 1;} to {bottom: 70px; opacity: 0;} }
     </style>
 </head>
 <body>
@@ -92,30 +137,32 @@
     <div class="back-nav">
         <div>
             <a href="/" class="text-dark me-3 text-decoration-none"><i class="fa fa-arrow-left"></i></a>
-            <span style="font-size: 11px; font-weight: 800;">PRODUCT OVERVIEW</span>
+            <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.5px;">PRODUCT DETAILS</span>
         </div>
-        <a href="/cart" class="text-dark position-relative me-2 text-decoration-none">
-            <i class="fa fa-shopping-bag" style="font-size: 18px;"></i>
-            <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9px;">
+        <a href="/cart" class="text-dark position-relative text-decoration-none">
+            <i class="fa fa-shopping-bag" style="font-size: 22px;"></i>
+            <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 10px;">
                 {{ session['cart']|length if session.get('cart') else 0 }}
             </span>
         </a>
     </div>
 
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-12 col-md-6 p-0">
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+            <div class="col-12 col-md-6">
                 <div class="scroll-container">
                     <div class="scroll-wrapper" id="imageScroller">
                         <div class="scroll-item">
-                            <img src="{{ product.image }}" alt="{{ product.name }}" onerror="this.src='https://placehold.co/400x400?text=Product+Image'">
+                            <img src="{{ product.image }}" alt="{{ product.name }}" onerror="this.src='https://placehold.co/800x800?text=No+Image+Available'">
                         </div>
+                        
                         {% if product.image_2 %}
                         <div class="scroll-item">
                             <img src="{{ product.image_2 }}" alt="{{ product.name }} View 2">
                         </div>
                         {% endif %}
                     </div>
+
                     {% if product.image_2 %}
                     <div class="scroll-dots">
                         <div class="dot active"></div>
@@ -126,32 +173,32 @@
             </div>
 
             <div class="col-12 col-md-6 p-4">
-                <div class="brand-tag">Premium Surplus</div>
+                <div class="brand-tag">Official EVIA Surplus</div>
                 <h1 class="product-name">{{ product.name }}</h1>
                 <div class="price-section">₹{{ product.price }}</div>
 
-                <div class="pincode-box">
-                    <div class="pin-label">CHECK AVAILABILITY</div>
+                <div class="pincode-box mb-4">
+                    <div class="pin-label"><i class="fa fa-map-marker-alt me-1"></i> CHECK DELIVERY SERVICES</div>
                     <div class="pin-input-group">
                         <input type="number" id="pinCode" class="pin-input" placeholder="Enter Pincode">
                         <button class="pin-btn" onclick="checkDelivery()">CHECK</button>
                     </div>
-                    <div id="deliveryMsg" style="font-size: 11px; margin-top: 10px; font-weight: 600; color: #777;">
-                        Standard delivery: 5-7 Days
+                    <div id="deliveryMsg" style="font-size: 12px; margin-top: 15px; font-weight: 600; color: #777;">
+                        Standard delivery: 5-7 business days
                     </div>
                 </div>
 
                 <div class="mt-4">
-                    <h6 style="font-size: 11px; font-weight: 800; color: #111;">PRODUCT DESCRIPTION</h6>
-                    <p style="font-size: 13px; color: #666; line-height: 1.6; margin-top: 10px;">
-                        {{ product.description or 'High-quality premium surplus item.' }}
+                    <h6 style="font-size: 12px; font-weight: 800; color: #111;">DESCRIPTION</h6>
+                    <p style="font-size: 14px; color: #666; line-height: 1.8; margin-top: 10px;">
+                        {{ product.description or 'High-quality premium surplus item. Limited collection available for a short time.' }}
                     </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="cart-toast">✅ Added to Cart!</div>
+    <div id="cart-toast">✅ Product added to your cart</div>
 
     <div class="bottom-bar">
         <button class="cart-btn" onclick="addToCart({{ product.id }})">ADD TO CART</button>
@@ -159,6 +206,21 @@
     </div>
 
     <script>
+        // Image Scroller Dot Sync Logic
+        const scroller = document.getElementById('imageScroller');
+        const dots = document.querySelectorAll('.dot');
+        
+        if (scroller && dots.length > 0) {
+            scroller.addEventListener('scroll', () => {
+                // Determine which slide is active based on scroll position
+                const index = Math.round(scroller.scrollLeft / scroller.offsetWidth);
+                dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+            });
+        }
+
+        // Add to Cart with AJAX
         function addToCart(productId) {
             fetch('/add-to-cart/' + productId, {
                 method: 'GET',
@@ -174,32 +236,22 @@
         }
 
         function showToast() {
-            var x = document.getElementById("cart-toast");
-            x.className = "show";
-            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+            const toast = document.getElementById("cart-toast");
+            toast.className = "show";
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
         }
 
+        // Pincode Availability Check
         function checkDelivery() {
             const pin = document.getElementById('pinCode').value;
             const msg = document.getElementById('deliveryMsg');
             if(pin.length === 6) {
-                msg.innerHTML = "✅ Serviceable: Delivery in 7 Days";
+                msg.innerHTML = "✅ Serviceable: Delivery expected within 7 days";
                 msg.style.color = "#28a745";
             } else {
-                msg.innerHTML = "❌ Invalid Pincode";
+                msg.innerHTML = "❌ Invalid Pincode. Please enter 6 digits.";
                 msg.style.color = "#dc3545";
             }
-        }
-
-        const scroller = document.getElementById('imageScroller');
-        const dots = document.querySelectorAll('.dot');
-        if (scroller && dots.length > 0) {
-            scroller.addEventListener('scroll', () => {
-                const index = Math.round(scroller.scrollLeft / scroller.offsetWidth);
-                dots.forEach((dot, i) => {
-                    dot.classList.toggle('active', i === index);
-                });
-            });
         }
     </script>
 </body>
