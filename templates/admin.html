@@ -16,6 +16,7 @@
             --accent: #00ff88;
             --border: rgba(255, 255, 255, 0.08);
             --return: #6f42c1;
+            --warning: #ffc107;
         }
 
         body { 
@@ -71,9 +72,10 @@
         }
         .order-card-sm.active { border-color: var(--accent); background: #1d1d21; }
 
-        .stat-badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 5px; margin-top: 5px; display: inline-block; }
+        .stat-badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 5px; margin-top: 5px; display: inline-block; text-transform: uppercase; }
         .status-placed { background: #333; color: white; }
         .status-shipped { background: #3366ff; color: white; }
+        .status-out-for-delivery { background: var(--warning); color: black; }
         .status-delivered { background: var(--accent); color: black; }
         .status-cancelled { background: #ff4444; color: white; }
 
@@ -89,9 +91,7 @@
         .form-control { background: var(--surface-2); border: 1px solid var(--border); color: white; }
         .form-control:focus { background: var(--surface-2); color: white; border-color: var(--accent); box-shadow: none; }
         
-        /* New Table Styling */
         .table { color: #fff; border-color: var(--border); }
-        .table hover { background: rgba(255,255,255,0.05); }
     </style>
 </head>
 <body>
@@ -129,7 +129,7 @@
         <div id="no-selection" class="text-center mt-5 opacity-25">
             <i class="fa fa-microchip fa-4x mb-3"></i>
             <h4>System Ready</h4>
-            <p class="small">Select an order or scroll down to manage inventory</p>
+            <p class="small">Select an order to update tracking status</p>
         </div>
 
         {% for o in orders %}
@@ -139,7 +139,7 @@
                     <div>
                         <h2 class="fw-800 mb-0">{{ o.customer.full_name }}</h2>
                         <a href="https://wa.me/{{ o.whatsapp }}" target="_blank" class="text-decoration-none small" style="color: var(--accent)">
-                           <i class="fab fa-whatsapp me-1"></i> +{{ o.whatsapp }} (Click to Chat)
+                           <i class="fab fa-whatsapp me-1"></i> +{{ o.whatsapp }} (Chat)
                         </a>
                     </div>
                     <h3 style="color: var(--accent)">₹{{ o.total_price }}</h3>
@@ -147,13 +147,13 @@
 
                 <div class="row">
                     <div class="col-md-7 mb-4">
-                        <label class="opacity-50 small fw-bold mb-2">FULL SHIPPING ADDRESS</label>
-                        <div class="p-3 rounded-3" style="background: var(--surface-1); border: 1px solid var(--border); font-size: 14px; line-height: 1.6;">
+                        <label class="opacity-50 small fw-bold mb-2">SHIPPING ADDRESS</label>
+                        <div class="p-3 rounded-3" style="background: var(--surface-1); border: 1px solid var(--border); font-size: 14px;">
                             {{ o.address if o.address else 'No Address Provided' }}
                         </div>
                     </div>
                     <div class="col-md-5 mb-4">
-                        <label class="opacity-50 small fw-bold mb-2">ORDER ITEMS</label>
+                        <label class="opacity-50 small fw-bold mb-2">ITEMS</label>
                         <div class="p-3 rounded-3" style="background: var(--surface-1); border: 1px solid var(--border); font-weight: bold;">
                             {{ o.product_details }}
                         </div>
@@ -161,12 +161,28 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                    <a href="/admin/update-status/{{ o.id }}/Shipped" class="btn btn-primary p-3 rounded-3 fw-bold">SHIP PACKAGE</a>
-                    <a href="/admin/update-status/{{ o.id }}/Delivered" class="btn btn-success p-3 rounded-3 fw-bold">MARK DELIVERED</a>
-                    <a href="/admin/update-status/{{ o.id }}/Cancelled" class="btn btn-dark p-3 rounded-3 fw-bold">CANCEL ORDER</a>
+                    <label class="small fw-bold opacity-50 mb-1">UPDATE TRACKING STATUS</label>
                     
-                    <a href="/admin/delete-order/{{ o.id }}" class="btn btn-outline-danger btn-sm mt-4 border-0 opacity-50" onclick="return confirm('Delete this order record permanently?')">
-                        <i class="fa fa-trash me-2"></i> PERMANENTLY DELETE RECORD
+                    <a href="/admin/update-status/{{ o.id }}/Shipped" class="btn btn-primary p-3 rounded-3 fw-bold">
+                        <i class="fa fa-ship me-2"></i> 1. MARK AS SHIPPED
+                    </a>
+
+                    <a href="/admin/update-status/{{ o.id }}/Out%20for%20Delivery" class="btn btn-warning p-3 rounded-3 fw-bold text-dark">
+                        <i class="fa fa-motorcycle me-2"></i> 2. OUT FOR DELIVERY
+                    </a>
+
+                    <a href="/admin/update-status/{{ o.id }}/Delivered" class="btn btn-success p-3 rounded-3 fw-bold">
+                        <i class="fa fa-check-double me-2"></i> 3. MARK DELIVERED
+                    </a>
+                    
+                    <hr class="my-3 opacity-10">
+                    
+                    <a href="/admin/update-status/{{ o.id }}/Cancelled" class="btn btn-dark p-3 rounded-3 fw-bold">
+                        CANCEL ORDER
+                    </a>
+
+                    <a href="/admin/delete-order/{{ o.id }}" class="btn btn-outline-danger btn-sm border-0 mt-3 opacity-25" onclick="return confirm('Permanently delete this record?')">
+                        <i class="fa fa-trash me-2"></i> DELETE RECORD
                     </a>
                 </div>
             </div>
@@ -174,24 +190,24 @@
         {% endfor %}
 
         <div class="mt-5 pt-5 border-top border-secondary">
-            <h4 class="fw-800 mb-4 text-white"><i class="fa fa-boxes me-2"></i>Inventory Management</h4>
-            <div class="table-responsive glass-card p-0" style="border-radius: 15px; overflow: hidden;">
-                <table class="table table-dark table-hover mb-0 align-middle">
-                    <thead class="small text-muted" style="background: var(--surface-1);">
+            <h4 class="fw-800 mb-4"><i class="fa fa-boxes me-2"></i>Inventory</h4>
+            <div class="table-responsive glass-card p-0">
+                <table class="table table-dark table-hover mb-0">
+                    <thead>
                         <tr>
-                            <th class="ps-4 py-3">PRODUCT NAME</th>
-                            <th class="py-3">PRICE</th>
-                            <th class="py-3 text-end pe-4">ACTION</th>
+                            <th class="ps-4">PRODUCT</th>
+                            <th>PRICE</th>
+                            <th class="text-end pe-4">ACTION</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for p in products %}
-                        <tr style="border-bottom: 1px solid var(--border);">
-                            <td class="ps-4 py-3 fw-bold">{{ p.name }}</td>
-                            <td class="py-3 text-accent" style="color: var(--accent);">₹{{ p.price }}</td>
-                            <td class="py-3 text-end pe-4">
-                                <a href="/admin/delete-product/{{ p.id }}" class="btn btn-sm btn-outline-danger border-0" onclick="return confirm('Remove {{ p.name }} from shop?')">
-                                    <i class="fa fa-trash-can"></i>
+                        <tr>
+                            <td class="ps-4">{{ p.name }}</td>
+                            <td style="color: var(--accent);">₹{{ p.price }}</td>
+                            <td class="text-end pe-4">
+                                <a href="/admin/delete-product/{{ p.id }}" class="btn btn-sm btn-outline-danger border-0">
+                                    <i class="fa fa-trash"></i>
                                 </a>
                             </td>
                         </tr>
@@ -206,30 +222,19 @@
 <div class="modal fade" id="productModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form action="/admin/add-product" method="POST" id="addProductForm">
+            <form action="/admin/add-product" method="POST">
                 <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold">Add New Collection</h5>
+                    <h5 class="modal-title">New Product</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <input type="text" name="name" class="form-control" placeholder="Product Name" required>
-                    </div>
-                    <div class="mb-3">
-                        <input type="number" name="price" class="form-control" placeholder="Price (₹)" required>
-                    </div>
-                    <div class="mb-3">
-                        <input type="text" name="image" class="form-control" placeholder="Main Image URL" required>
-                    </div>
-                    <div class="mb-3">
-                        <input type="text" name="image_2" class="form-control" placeholder="Second Image URL (Optional)">
-                    </div>
-                    <div class="mb-3">
-                        <textarea name="description" class="form-control" placeholder="Description" rows="3"></textarea>
-                    </div>
+                    <input type="text" name="name" class="form-control mb-3" placeholder="Product Name" required>
+                    <input type="number" name="price" class="form-control mb-3" placeholder="Price" required>
+                    <input type="text" name="image" class="form-control mb-3" placeholder="Image URL" required>
+                    <textarea name="description" class="form-control" placeholder="Description"></textarea>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="submit" id="submitBtn" class="btn btn-success w-100 py-3 fw-bold">UPLOAD PRODUCT</button>
+                    <button type="submit" class="btn btn-success w-100 py-3 fw-bold">UPLOAD</button>
                 </div>
             </form>
         </div>
@@ -240,36 +245,21 @@
     function viewOrder(id) {
         document.getElementById('no-selection').classList.add('d-none');
         document.querySelectorAll('.detail-view').forEach(el => el.classList.add('d-none'));
-        
         const detailEl = document.getElementById('detail-' + id);
         if(detailEl) detailEl.classList.remove('d-none');
-        
-        if(window.innerWidth < 768) {
-            document.getElementById('mainContent').classList.add('active');
-        }
-        
+        if(window.innerWidth < 768) document.getElementById('mainContent').classList.add('active');
         document.querySelectorAll('.order-card-sm').forEach(el => el.classList.remove('active'));
         event.currentTarget.classList.add('active');
     }
 
-    function closeDetails() {
-        document.getElementById('mainContent').classList.remove('active');
-    }
+    function closeDetails() { document.getElementById('mainContent').classList.remove('active'); }
 
     function filterOrders() {
         let input = document.getElementById('orderSearch').value.toLowerCase();
-        let cards = document.querySelectorAll('.order-card-sm');
-        cards.forEach(card => {
-            let name = card.getAttribute('data-name');
-            card.style.display = name.includes(input) ? "block" : "none";
+        document.querySelectorAll('.order-card-sm').forEach(card => {
+            card.style.display = card.getAttribute('data-name').includes(input) ? "block" : "none";
         });
     }
-
-    document.getElementById('addProductForm').addEventListener('submit', function() {
-        const btn = document.getElementById('submitBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin me-2"></i> UPLOADING...';
-    });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
