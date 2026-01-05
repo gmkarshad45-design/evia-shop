@@ -75,6 +75,7 @@
         .status-placed { background: #333; color: white; }
         .status-shipped { background: #3366ff; color: white; }
         .status-delivered { background: var(--accent); color: black; }
+        .status-cancelled { background: #ff4444; color: white; }
 
         .glass-card { 
             background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(20px); 
@@ -87,6 +88,10 @@
         .modal-content { background: var(--surface-1); color: white; border: 1px solid var(--border); border-radius: 20px; }
         .form-control { background: var(--surface-2); border: 1px solid var(--border); color: white; }
         .form-control:focus { background: var(--surface-2); color: white; border-color: var(--accent); box-shadow: none; }
+        
+        /* New Table Styling */
+        .table { color: #fff; border-color: var(--border); }
+        .table hover { background: rgba(255,255,255,0.05); }
     </style>
 </head>
 <body>
@@ -124,6 +129,7 @@
         <div id="no-selection" class="text-center mt-5 opacity-25">
             <i class="fa fa-microchip fa-4x mb-3"></i>
             <h4>System Ready</h4>
+            <p class="small">Select an order or scroll down to manage inventory</p>
         </div>
 
         {% for o in orders %}
@@ -132,8 +138,8 @@
                 <div class="d-flex justify-content-between align-items-start mb-4">
                     <div>
                         <h2 class="fw-800 mb-0">{{ o.customer.full_name }}</h2>
-                        <a href="https://wa.me/{{ o.customer.phone }}" target="_blank" class="text-decoration-none small" style="color: var(--accent)">
-                           <i class="fab fa-whatsapp me-1"></i> +{{ o.customer.phone }} (Click to Chat)
+                        <a href="https://wa.me/{{ o.whatsapp }}" target="_blank" class="text-decoration-none small" style="color: var(--accent)">
+                           <i class="fab fa-whatsapp me-1"></i> +{{ o.whatsapp }} (Click to Chat)
                         </a>
                     </div>
                     <h3 style="color: var(--accent)">₹{{ o.total_price }}</h3>
@@ -157,11 +163,43 @@
                 <div class="d-grid gap-2">
                     <a href="/admin/update-status/{{ o.id }}/Shipped" class="btn btn-primary p-3 rounded-3 fw-bold">SHIP PACKAGE</a>
                     <a href="/admin/update-status/{{ o.id }}/Delivered" class="btn btn-success p-3 rounded-3 fw-bold">MARK DELIVERED</a>
-                    <a href="/admin/update-status/{{ o.id }}/Cancelled" class="btn btn-danger p-3 rounded-3 fw-bold">CANCEL ORDER</a>
+                    <a href="/admin/update-status/{{ o.id }}/Cancelled" class="btn btn-dark p-3 rounded-3 fw-bold">CANCEL ORDER</a>
+                    
+                    <a href="/admin/delete-order/{{ o.id }}" class="btn btn-outline-danger btn-sm mt-4 border-0 opacity-50" onclick="return confirm('Delete this order record permanently?')">
+                        <i class="fa fa-trash me-2"></i> PERMANENTLY DELETE RECORD
+                    </a>
                 </div>
             </div>
         </div>
         {% endfor %}
+
+        <div class="mt-5 pt-5 border-top border-secondary">
+            <h4 class="fw-800 mb-4 text-white"><i class="fa fa-boxes me-2"></i>Inventory Management</h4>
+            <div class="table-responsive glass-card p-0" style="border-radius: 15px; overflow: hidden;">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead class="small text-muted" style="background: var(--surface-1);">
+                        <tr>
+                            <th class="ps-4 py-3">PRODUCT NAME</th>
+                            <th class="py-3">PRICE</th>
+                            <th class="py-3 text-end pe-4">ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in products %}
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td class="ps-4 py-3 fw-bold">{{ p.name }}</td>
+                            <td class="py-3 text-accent" style="color: var(--accent);">₹{{ p.price }}</td>
+                            <td class="py-3 text-end pe-4">
+                                <a href="/admin/delete-product/{{ p.id }}" class="btn btn-sm btn-outline-danger border-0" onclick="return confirm('Remove {{ p.name }} from shop?')">
+                                    <i class="fa fa-trash-can"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -199,7 +237,6 @@
 </div>
 
 <script>
-    // Handle Click to View Details
     function viewOrder(id) {
         document.getElementById('no-selection').classList.add('d-none');
         document.querySelectorAll('.detail-view').forEach(el => el.classList.add('d-none'));
@@ -219,7 +256,6 @@
         document.getElementById('mainContent').classList.remove('active');
     }
 
-    // Search Filtering
     function filterOrders() {
         let input = document.getElementById('orderSearch').value.toLowerCase();
         let cards = document.querySelectorAll('.order-card-sm');
@@ -229,7 +265,6 @@
         });
     }
 
-    // Anti-Double Submit Protection
     document.getElementById('addProductForm').addEventListener('submit', function() {
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
