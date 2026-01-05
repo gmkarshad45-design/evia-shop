@@ -9,8 +9,8 @@ app = Flask(__name__)
 
 # --- 1. CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_final_secret_2026')
-# Bumping to v17 to ensure all tables and columns are fresh and clean
-database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v17.db")
+# Bumping to v18 to ensure all tables and columns are fresh and clean
+database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v18.db")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
@@ -154,7 +154,8 @@ def return_order(id):
 def admin_panel():
     if current_user.email != 'admin@test.gmail.com': return "Denied", 403
     orders = Order.query.order_by(Order.date_ordered.desc()).all()
-    return render_template('admin.html', orders=orders)
+    products = Product.query.all() # Added to show inventory list
+    return render_template('admin.html', orders=orders, products=products)
 
 @app.route('/admin/add-product', methods=['POST'])
 @login_required
@@ -169,7 +170,36 @@ def add_product():
     db.session.commit()
     return redirect(url_for('admin_panel'))
 
-# --- 8. AUTHENTICATION (FIXED SIGNUP) ---
+@app.route('/admin/update-status/<int:id>/<string:new_status>')
+@login_required
+def update_status(id, new_status):
+    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    order = Order.query.get_or_404(id)
+    order.status = new_status
+    db.session.commit()
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/delete-product/<int:id>')
+@login_required
+def delete_product(id):
+    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    product = Product.query.get_or_404(id)
+    db.session.delete(product)
+    db.session.commit()
+    flash("Product removed from inventory.")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/delete-order/<int:id>')
+@login_required
+def delete_order(id):
+    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    order = Order.query.get_or_404(id)
+    db.session.delete(order)
+    db.session.commit()
+    flash("Order record deleted.")
+    return redirect(url_for('admin_panel'))
+
+# --- 8. AUTHENTICATION ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -177,26 +207,23 @@ def signup():
         full_name = request.form.get('full_name')
         password = request.form.get('password')
 
-        # 1. CHECK IF USER ALREADY EXISTS
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
             flash("Email already registered. Please login.")
             return redirect(url_for('login'))
 
-        # 2. TRY TO CREATE USER
         try:
             hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
             new_user = User(full_name=full_name, email=email, password=hashed_pw)
             db.session.add(new_user)
             db.session.commit()
-            
             login_user(new_user)
             flash("Account created successfully!")
             return redirect(url_for('index'))
         except Exception as e:
-            db.session.rollback() # Important: clears the error so the next request works
+            db.session.rollback()
             print(f"DEBUG: Signup error - {e}")
-            flash("An error occurred during signup. Please try again.")
+            flash("An error occurred during signup.")
             return redirect(url_for('signup'))
 
     return render_template('signup.html')
