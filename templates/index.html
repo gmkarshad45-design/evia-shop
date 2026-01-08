@@ -8,19 +8,69 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
 
         :root {
             --evia-black: #000000;
             --evia-dark: #111111;
-            --muted-bg: #f5f5f7;
+            --muted-gray: #f5f5f7;
+            --evia-gold: #d4af37;
         }
 
         body { 
-            background-color: #fcfcfc; 
+            background-color: #ffffff; 
             font-family: 'Plus Jakarta Sans', sans-serif; 
             color: var(--evia-black);
+            margin: 0;
         }
+
+        /* --- FIGMA STYLE PRELOADER --- */
+        #preloader {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: transform 1s cubic-bezier(0.85, 0, 0.15, 1);
+        }
+
+        .loader-circle-container {
+            position: relative;
+            width: 100px; height: 100px;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .loader-ring {
+            position: absolute;
+            width: 100%; height: 100%;
+            border: 2px solid #222;
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loader-icon { font-size: 35px; color: #fff; animation: pulse 1.5s ease-in-out infinite; }
+
+        .loader-text {
+            color: #fff; font-weight: 800; font-size: 26px;
+            text-transform: uppercase; letter-spacing: 5px; margin-top: 20px;
+            animation: evia-zoom 2.5s ease-in-out forwards;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        @keyframes evia-zoom {
+            0% { transform: scale(0.5); opacity: 0; filter: blur(5px); }
+            50% { opacity: 1; filter: blur(0px); }
+            100% { transform: scale(1.8); opacity: 1; letter-spacing: 15px; }
+        }
+
+        .loaded #preloader { transform: translateY(-100%); }
+        body.loading { overflow: hidden; }
 
         /* --- MODERN BLACK HEADER --- */
         .navbar { 
@@ -28,100 +78,101 @@
             padding: 15px 0; 
             border-bottom: 1px solid #222;
         }
-        .navbar-brand { font-weight: 800; color: #fff !important; letter-spacing: 2px; }
+        .navbar-brand { font-weight: 800; color: #fff !important; letter-spacing: 3px; font-size: 24px; }
         
         /* MODERN SEARCH BOX */
-        .search-group { 
-            flex-grow: 1; 
-            margin: 0 15px; 
-            max-width: 500px;
-            position: relative;
-        }
+        .search-group { flex-grow: 1; margin: 0 15px; max-width: 450px; position: relative; }
         .search-input { 
-            background: #1a1a1a; 
-            border: 1px solid #333; 
-            color: #fff; 
-            border-radius: 50px; 
-            font-size: 13px; 
-            padding: 8px 20px 8px 40px;
+            background: #111; border: 1px solid #333; color: #fff !important; 
+            border-radius: 50px; font-size: 13px; padding: 10px 20px 10px 45px;
         }
-        .search-input:focus { background: #222; color: #fff; box-shadow: none; border-color: #555; }
-        .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #666; font-size: 12px; }
+        .search-input:focus { background: #1a1a1a; border-color: #555; box-shadow: none; }
+        .search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: #666; }
 
-        .cart-link { color: white !important; font-size: 20px; position: relative; }
+        .cart-link { color: white !important; font-size: 22px; position: relative; text-decoration: none; }
 
-        /* --- PRODUCT CARD (PERFECT IMAGE FIT) --- */
+        /* --- PERFECT FIT PRODUCT CARDS --- */
         .product-card { 
-            border-radius: 15px; border: 1px solid #f0f0f0; background: #fff; overflow: hidden; 
-            transition: all 0.3s ease; height: 100%;
+            border: none; background: transparent; transition: 0.3s; margin-bottom: 20px;
         }
         
-        .img-container { 
-            height: 200px; 
-            background: #fff; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 15px; 
+        .img-wrapper {
+            background: var(--muted-gray);
+            border-radius: 20px;
+            aspect-ratio: 1 / 1.1;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; padding: 20px;
         }
 
-        .img-container img { 
-            max-width: 100%; 
-            max-height: 100%; 
-            object-fit: contain; /* Prevents blur and cropping */
-            image-rendering: -webkit-optimize-contrast; /* Ensures sharpness */
+        .img-wrapper img {
+            max-width: 100%; max-height: 100%;
+            object-fit: contain; /* PERFECT FIT: NO BLUR / NO CUTTING */
+            image-rendering: -webkit-optimize-contrast;
+            transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
         }
 
-        .product-title { font-size: 13px; font-weight: 600; color: #444; margin-bottom: 4px; line-height: 1.2; }
-        .product-price { font-weight: 800; font-size: 15px; color: var(--evia-black); }
+        .product-card:hover .img-wrapper img { transform: scale(1.1); }
 
-        .btn-buy { 
-            background: var(--evia-black); color: white; border-radius: 10px; 
-            font-size: 11px; font-weight: 700; border: none; padding: 10px;
+        .product-title { font-size: 14px; font-weight: 400; color: #555; margin: 10px 0 2px; display: block; text-decoration: none; }
+        .product-price { font-weight: 800; font-size: 16px; color: #000; }
+
+        .btn-add {
+            background: var(--evia-black); color: white; border-radius: 12px; 
+            font-size: 12px; font-weight: 700; padding: 12px; text-align: center;
+            display: block; text-decoration: none; margin-top: 10px;
         }
+        .btn-add:hover { background: #333; color: white; }
 
         /* --- MODERN BLACK FOOTER --- */
         footer {
-            background: var(--evia-black);
-            color: white;
-            padding: 40px 0;
-            margin-top: 50px;
+            background: var(--evia-black); color: white; padding: 60px 0 30px; margin-top: 60px;
         }
-        .footer-link { color: #888; text-decoration: none; font-size: 13px; transition: 0.3s; }
+        .footer-logo { font-weight: 800; font-size: 24px; letter-spacing: 4px; margin-bottom: 10px; }
+        .footer-link { color: #777; text-decoration: none; font-size: 13px; transition: 0.3s; }
         .footer-link:hover { color: white; }
 
     </style>
 </head>
-<body>
+<body class="loading">
+
+<div id="preloader">
+    <div class="loader-circle-container">
+        <div class="loader-ring"></div>
+        <div class="loader-icon"><i class="fa-solid fa-shirt"></i></div>
+    </div>
+    <div class="loader-text">EVIA</div>
+</div>
 
 <nav class="navbar navbar-expand-lg sticky-top">
     <div class="container px-3">
         <a class="navbar-brand" href="/">EVIA</a>
         
-        <form class="search-group d-flex" action="/" method="GET">
+        <form class="search-group d-none d-md-flex" action="/" method="GET">
             <i class="fa fa-search search-icon"></i>
-            <input class="form-control search-input" type="search" name="q" placeholder="Search clothes..." value="{{ request.args.get('q', '') }}">
+            <input class="form-control search-input" type="search" name="q" placeholder="Explore styles..." value="{{ request.args.get('q', '') }}">
         </form>
 
         <div class="d-flex align-items-center gap-3">
-            <a href="/cart" class="cart-link">
-                <i class="fa fa-shopping-bag"></i>
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9px; padding: 3px 5px;">
+            <a href="/cart" class="cart-link me-2">
+                <i class="fa-solid fa-bag-shopping"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9px;">
                     {{ cart_count if cart_count else 0 }}
                 </span>
             </a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
-                <span class="fa fa-bars text-white"></span>
+            
+            <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
+                <i class="fa-solid fa-bars-staggered"></i>
             </button>
         </div>
 
         <div class="collapse navbar-collapse" id="mainMenu">
-            <div class="navbar-nav ms-auto pt-3 pt-lg-0">
+            <div class="navbar-nav ms-auto pt-3 pt-lg-0 align-items-lg-center">
                 {% if current_user.is_authenticated %}
-                    <a class="nav-link text-white small" href="/profile">MY ORDERS</a>
-                    <a class="btn btn-outline-danger btn-sm" href="/logout">LOGOUT</a>
+                    <a class="nav-link text-white small fw-bold" href="/profile">MY ORDERS</a>
+                    <a class="btn btn-outline-light btn-sm ms-lg-3" href="/logout">LOGOUT</a>
                 {% else %}
-                    <a class="nav-link text-white small" href="/login">LOGIN</a>
+                    <a class="nav-link text-white small fw-bold" href="/login">LOGIN</a>
+                    <a class="btn btn-warning btn-sm fw-bold ms-lg-3 text-dark" href="/signup" style="border-radius: 50px; padding: 6px 18px;">CREATE ACCOUNT</a>
                 {% endif %}
             </div>
         </div>
@@ -135,19 +186,15 @@
             <div class="col-6 col-md-3">
                 <div class="product-card">
                     <a href="{{ url_for('product_detail', id=p.id) }}" class="text-decoration-none">
-                        <div class="img-container">
+                        <div class="img-wrapper">
                             <img src="{{ p.image }}" alt="{{ p.name }}" onerror="this.src='https://placehold.co/400x400?text=EVIA'">
                         </div>
-                        <div class="p-3">
-                            <h6 class="product-title text-truncate">{{ p.name }}</h6>
-                            <div class="product-price">₹{{ p.price }}</div>
-                        </div>
+                        <span class="product-title">{{ p.name }}</span>
+                        <div class="product-price">₹{{ p.price }}</div>
                     </a>
-                    <div class="px-3 pb-3 d-grid gap-2">
-                        <a href="{{ url_for('add_to_cart', id=p.id) }}" class="btn-buy text-center text-decoration-none">
-                            ADD TO CART
-                        </a>
-                    </div>
+                    <a href="{{ url_for('add_to_cart', id=p.id) }}" class="btn-add">
+                        Add to Cart
+                    </a>
                 </div>
             </div>
             {% endfor %}
@@ -157,14 +204,24 @@
 
 <footer>
     <div class="container text-center">
-        <h4 class="fw-bold mb-3">EVIA</h4>
-        <div class="d-flex justify-content-center gap-4 mb-3">
-            <a href="#" class="footer-link"><i class="fab fa-instagram"></i> INSTAGRAM</a>
-            <a href="#" class="footer-link"><i class="fab fa-whatsapp"></i> WHATSAPP</a>
+        <div class="footer-logo">EVIA</div>
+        <div class="d-flex justify-content-center gap-4 mb-4">
+            <a href="#" class="footer-link">INSTAGRAM</a>
+            <a href="#" class="footer-link">WHATSAPP</a>
+            <a href="#" class="footer-link">SUPPORT</a>
         </div>
-        <p class="small text-muted mb-0">© 2026 EVIA CLOTHING | CREATE BY WEBWIZ</p>
+        <p class="small text-muted mb-0">© 2026 EVIA CLOTHING | DESIGNED BY WEBWIZ</p>
     </div>
 </footer>
+
+<script>
+    window.addEventListener('load', function() {
+        setTimeout(() => {
+            document.body.classList.add('loaded');
+            document.body.classList.remove('loading');
+        }, 2500); // 2.5 seconds for perfect animation timing
+    });
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
