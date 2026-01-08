@@ -196,6 +196,7 @@
                     <thead>
                         <tr>
                             <th class="ps-4">PRODUCT</th>
+                            <th>IMAGES</th>
                             <th>PRICE</th>
                             <th class="text-end pe-4">ACTION</th>
                         </tr>
@@ -204,6 +205,12 @@
                         {% for p in products %}
                         <tr>
                             <td class="ps-4">{{ p.name }}</td>
+                            <td>
+                                <i class="fa fa-image me-1"></i>
+                                {% if p.image_2 %}
+                                <i class="fa fa-image text-info"></i>
+                                {% endif %}
+                            </td>
                             <td style="color: var(--accent);">₹{{ p.price }}</td>
                             <td class="text-end pe-4">
                                 <a href="/admin/delete-product/{{ p.id }}" class="btn btn-sm btn-outline-danger border-0">
@@ -230,11 +237,17 @@
                 <div class="modal-body">
                     <input type="text" name="name" class="form-control mb-3" placeholder="Product Name" required>
                     <input type="number" name="price" class="form-control mb-3" placeholder="Price" required>
-                    <input type="text" name="image" class="form-control mb-3" placeholder="Image URL" required>
+                    
+                    <label class="small opacity-50 mb-1 ms-1">PRIMARY IMAGE</label>
+                    <input type="text" name="image" class="form-control mb-3" placeholder="Main Image URL" required>
+                    
+                    <label class="small opacity-50 mb-1 ms-1">SECONDARY IMAGE (OPTIONAL)</label>
+                    <input type="text" name="image_2" class="form-control mb-3" placeholder="Second Image URL">
+                    
                     <textarea name="description" class="form-control" placeholder="Description"></textarea>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="submit" class="btn btn-success w-100 py-3 fw-bold">UPLOAD</button>
+                    <button type="submit" class="btn btn-success w-100 py-3 fw-bold">UPLOAD PRODUCT</button>
                 </div>
             </form>
         </div>
