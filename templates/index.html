@@ -11,9 +11,9 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
 
         :root {
-            --evia-gold: #d4af37; 
             --evia-black: #000000;
             --evia-dark: #111111;
+            --muted-bg: #f5f5f7;
         }
 
         body { 
@@ -22,53 +22,74 @@
             color: var(--evia-black);
         }
 
-        /* Fixed Navigation */
-        .navbar { background: var(--evia-black) !important; padding: 12px 0; border-bottom: 1px solid #222; }
+        /* --- MODERN BLACK HEADER --- */
+        .navbar { 
+            background: var(--evia-black) !important; 
+            padding: 15px 0; 
+            border-bottom: 1px solid #222;
+        }
         .navbar-brand { font-weight: 800; color: #fff !important; letter-spacing: 2px; }
         
-        .search-group { flex-grow: 1; margin: 0 12px; }
-        .search-input { 
-            background: #222; border: none; color: #fff; border-radius: 8px; font-size: 13px; padding: 8px 15px;
+        /* MODERN SEARCH BOX */
+        .search-group { 
+            flex-grow: 1; 
+            margin: 0 15px; 
+            max-width: 500px;
+            position: relative;
         }
-        .search-input:focus { background: #333; color: #fff; box-shadow: none; }
+        .search-input { 
+            background: #1a1a1a; 
+            border: 1px solid #333; 
+            color: #fff; 
+            border-radius: 50px; 
+            font-size: 13px; 
+            padding: 8px 20px 8px 40px;
+        }
+        .search-input:focus { background: #222; color: #fff; box-shadow: none; border-color: #555; }
+        .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #666; font-size: 12px; }
 
-        .cart-link { color: white !important; font-size: 20px; transition: 0.3s; }
-        .order-link { color: #888 !important; font-size: 12px; text-transform: uppercase; font-weight: 700; text-decoration: none; }
+        .cart-link { color: white !important; font-size: 20px; position: relative; }
 
-        /* Modern Product Card */
+        /* --- PRODUCT CARD (PERFECT IMAGE FIT) --- */
         .product-card { 
             border-radius: 15px; border: 1px solid #f0f0f0; background: #fff; overflow: hidden; 
             transition: all 0.3s ease; height: 100%;
         }
-        .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
         
-        .img-container { height: 180px; overflow: hidden; background: #fff; }
-        .img-container img { width: 100%; height: 100%; object-fit: cover; }
+        .img-container { 
+            height: 200px; 
+            background: #fff; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px; 
+        }
+
+        .img-container img { 
+            max-width: 100%; 
+            max-height: 100%; 
+            object-fit: contain; /* Prevents blur and cropping */
+            image-rendering: -webkit-optimize-contrast; /* Ensures sharpness */
+        }
 
         .product-title { font-size: 13px; font-weight: 600; color: #444; margin-bottom: 4px; line-height: 1.2; }
         .product-price { font-weight: 800; font-size: 15px; color: var(--evia-black); }
-
-        /* Announcement Bar */
-        .hero-banner { 
-            background: var(--evia-dark); color: white; border-radius: 15px; 
-            padding: 30px 20px; text-align: center; margin: 20px 0;
-            background-image: linear-gradient(45deg, #111 25%, #1a1a1a 25%, #1a1a1a 50%, #111 50%, #111 75%, #1a1a1a 75%, #1a1a1a 100%);
-            background-size: 56.57px 56.57px;
-        }
 
         .btn-buy { 
             background: var(--evia-black); color: white; border-radius: 10px; 
             font-size: 11px; font-weight: 700; border: none; padding: 10px;
         }
-        .btn-buy:hover { background: #333; color: white; }
 
-        /* Sidebar Menu Fix */
-        @media (max-width: 991px) {
-            .navbar-collapse { 
-                background: #000; padding: 20px; position: fixed; top: 60px; left: 0; right: 0; z-index: 1000;
-                border-bottom: 2px solid var(--evia-gold);
-            }
+        /* --- MODERN BLACK FOOTER --- */
+        footer {
+            background: var(--evia-black);
+            color: white;
+            padding: 40px 0;
+            margin-top: 50px;
         }
+        .footer-link { color: #888; text-decoration: none; font-size: 13px; transition: 0.3s; }
+        .footer-link:hover { color: white; }
+
     </style>
 </head>
 <body>
@@ -78,21 +99,17 @@
         <a class="navbar-brand" href="/">EVIA</a>
         
         <form class="search-group d-flex" action="/" method="GET">
-            <input class="form-control search-input" type="search" name="q" placeholder="Search products..." value="{{ request.args.get('q', '') }}">
+            <i class="fa fa-search search-icon"></i>
+            <input class="form-control search-input" type="search" name="q" placeholder="Search clothes..." value="{{ request.args.get('q', '') }}">
         </form>
 
         <div class="d-flex align-items-center gap-3">
-            {% if current_user.is_authenticated %}
-            <a href="/profile" class="order-link d-none d-md-block text-warning">MY ORDERS</a>
-            {% endif %}
-            
-            <a href="/cart" class="cart-link position-relative">
+            <a href="/cart" class="cart-link">
                 <i class="fa fa-shopping-bag"></i>
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9px; padding: 3px 5px;">
                     {{ cart_count if cart_count else 0 }}
                 </span>
             </a>
-            
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
                 <span class="fa fa-bars text-white"></span>
             </button>
@@ -101,26 +118,17 @@
         <div class="collapse navbar-collapse" id="mainMenu">
             <div class="navbar-nav ms-auto pt-3 pt-lg-0">
                 {% if current_user.is_authenticated %}
-                    <a class="nav-link text-warning small fw-bold mb-2 d-md-none" href="/profile">MY ORDERS</a>
-                    {% if current_user.email == 'admin@test.gmail.com' %}
-                        <a class="nav-link text-info small fw-bold mb-2" href="/admin">ADMIN PANEL</a>
-                    {% endif %}
-                    <a class="btn btn-outline-danger btn-sm fw-bold" href="/logout">LOGOUT</a>
+                    <a class="nav-link text-white small" href="/profile">MY ORDERS</a>
+                    <a class="btn btn-outline-danger btn-sm" href="/logout">LOGOUT</a>
                 {% else %}
-                    <a class="nav-link text-white small fw-bold" href="/login">LOGIN</a>
-                    <a class="nav-link text-warning small fw-bold" href="/signup">CREATE ACCOUNT</a>
+                    <a class="nav-link text-white small" href="/login">LOGIN</a>
                 {% endif %}
             </div>
         </div>
     </div>
 </nav>
 
-<div class="container">
-    <div class="hero-banner">
-        <h2 class="fw-800 mb-1">NEW ARRIVALS</h2>
-        <p class="small text-muted mb-0">LIMITED QUANTITY SURPLUS STOCK</p>
-    </div>
-
+<div class="container mt-4">
     <div class="row g-3">
         {% if products %}
             {% for p in products %}
@@ -130,40 +138,31 @@
                         <div class="img-container">
                             <img src="{{ p.image }}" alt="{{ p.name }}" onerror="this.src='https://placehold.co/400x400?text=EVIA'">
                         </div>
-                        <div class="p-3 pb-0">
+                        <div class="p-3">
                             <h6 class="product-title text-truncate">{{ p.name }}</h6>
-                            <div class="product-price mb-2">₹{{ p.price }}</div>
+                            <div class="product-price">₹{{ p.price }}</div>
                         </div>
                     </a>
                     <div class="px-3 pb-3 d-grid gap-2">
                         <a href="{{ url_for('add_to_cart', id=p.id) }}" class="btn-buy text-center text-decoration-none">
-                            <i class="fa fa-cart-plus me-1"></i> ADD TO CART
-                        </a>
-                        <a href="{{ url_for('buy_now', id=p.id) }}" class="btn btn-light btn-sm fw-bold" style="font-size: 10px; border-radius: 10px;">
-                            BUY NOW
+                            ADD TO CART
                         </a>
                     </div>
                 </div>
             </div>
             {% endfor %}
-        {% else %}
-            <div class="col-12 text-center py-5">
-                <i class="fa fa-search fa-3x text-muted mb-3"></i>
-                <h5 class="fw-bold">No items found</h5>
-                <a href="/" class="btn btn-dark rounded-pill px-4 btn-sm">Refresh Shop</a>
-            </div>
         {% endif %}
     </div>
 </div>
 
-<footer class="mt-5 py-4 border-top">
+<footer>
     <div class="container text-center">
+        <h4 class="fw-bold mb-3">EVIA</h4>
         <div class="d-flex justify-content-center gap-4 mb-3">
-            <a href="#" class="text-dark fs-5"><i class="fab fa-instagram"></i></a>
-            <a href="#" class="text-dark fs-5"><i class="fab fa-whatsapp"></i></a>
+            <a href="#" class="footer-link"><i class="fab fa-instagram"></i> INSTAGRAM</a>
+            <a href="#" class="footer-link"><i class="fab fa-whatsapp"></i> WHATSAPP</a>
         </div>
-        <p class="small text-muted mb-0">© 2026 EVIA CLOTHING </p>
-         <p class="small text-muted mb-0">creat by webwiz</p>
+        <p class="small text-muted mb-0">© 2026 EVIA CLOTHING | CREATE BY WEBWIZ</p>
     </div>
 </footer>
 
