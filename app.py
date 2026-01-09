@@ -230,21 +230,26 @@ def update_status(id, new_status):
         flash(f"Order updated to {new_status}")
     return redirect(url_for('admin_panel'))
 
-# --- 8. AUTHENTICATION ---
+# --- 8. AUTHENTICATION (FIXED) ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        email = request.form.get('email')
+        # .lower() ignores Caps, .strip() removes accidental spaces from mobile keyboard
+        email = request.form.get('email').lower().strip()
         full_name = request.form.get('full_name')
         password = request.form.get('password')
+        
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
-            flash("Email already registered.")
+            flash("Email already registered. Please login.")
             return redirect(url_for('login'))
-        hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
+        
+        # Using default hashing for better compatibility
+        hashed_pw = generate_password_hash(password)
         new_user = User(full_name=full_name, email=email, password=hashed_pw)
         db.session.add(new_user)
         db.session.commit()
+        
         login_user(new_user)
         return redirect(url_for('index'))
     return render_template('signup.html')
@@ -252,10 +257,17 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        user = User.query.filter_by(email=request.form.get('email')).first()
-        if user and check_password_hash(user.password, request.form.get('password')):
-            login_user(user)
+        # Same cleaning logic here
+        email = request.form.get('email').lower().strip()
+        password = request.form.get('password')
+        
+        user = User.query.filter_by(email=email).first()
+        
+        if user and check_password_hash(user.password, password):
+            # Added remember=True to keep users logged in on mobile browsers
+            login_user(user, remember=True)
             return redirect(url_for('index'))
+        
         flash("Invalid Credentials")
     return render_template('login.html')
 
