@@ -68,9 +68,10 @@
             border: 1.5px solid var(--border-color); 
             border-radius: 12px; 
             box-sizing: border-box; 
-            font-size: 16px; 
+            font-size: 16px; /* 16px prevents iOS auto-zoom on focus */
             transition: all 0.2s ease;
             background: #fff;
+            touch-action: manipulation;
         }
 
         input:focus {
@@ -89,6 +90,7 @@
             font-weight: 700; 
             font-size: 16px;
             margin-top: 10px;
+            touch-action: manipulation; /* Removes 300ms tap delay */
         }
 
         .btn:active { transform: scale(0.98); opacity: 0.9; }
@@ -137,12 +139,18 @@
         <form method="POST">
             <div class="input-group">
                 <label>Full Name</label>
-                <input type="text" name="full_name" placeholder="Razi" required>
+                <input type="text" name="full_name" placeholder="Enter your name" required>
             </div>
 
             <div class="input-group">
                 <label>Email Address</label>
-                <input type="email" name="email" placeholder="name@gmail.com" required>
+                <input type="email" 
+                       name="email" 
+                       placeholder="name@gmail.com" 
+                       required 
+                       autocapitalize="none" 
+                       autocorrect="off" 
+                       spellcheck="false">
             </div>
 
             <div class="input-group">
