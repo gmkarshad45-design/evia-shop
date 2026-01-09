@@ -33,7 +33,7 @@ class Product(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     image = db.Column(db.String(500))
-    image_2 = db.Column(db.String(500))  # <-- ADDED FOR SECOND IMAGE
+    image_2 = db.Column(db.String(500))  # Second Image Support
     description = db.Column(db.Text)
 
 class Order(db.Model):
@@ -53,7 +53,6 @@ def load_user(user_id):
 # --- DATABASE INITIALIZATION & FIX ---
 with app.app_context():
     db.create_all()
-    # This block checks if 'image_2' column exists, if not, it adds it automatically
     try:
         db.session.execute(text('SELECT image_2 FROM product LIMIT 1'))
     except:
@@ -152,22 +151,19 @@ def add_product():
     name = request.form.get('name')
     price = request.form.get('price')
     image = request.form.get('image')
-    image_2 = request.form.get('image_2') # <-- UPDATED
+    image_2 = request.form.get('image_2')
     description = request.form.get('description')
     
     new_p = Product(
         name=name, 
         price=int(price), 
         image=image, 
-        image_2=image_2, # <-- UPDATED
+        image_2=image_2,
         description=description
     )
     db.session.add(new_p)
     db.session.commit()
     return redirect(url_for('admin_panel'))
-
-# Status updates, delete functions, and login/signup routes remain the same...
-# (Keep your existing update_status, delete_product, delete_order, signup, login, profile, and logout routes here)
 
 @app.route('/admin/update-status/<int:id>/<string:new_status>')
 @login_required
@@ -200,8 +196,8 @@ def delete_order(id):
     db.session.delete(order)
     db.session.commit()
     return redirect(url_for('admin_panel'))
-    
-    # --- 8. AUTHENTICATION (REPLACE YOUR EXISTING LOGIN/SIGNUP WITH THIS) ---
+
+# --- 8. AUTHENTICATION ---
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -242,25 +238,21 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- 9. RESET ROUTE (THE NEW BUTTON) ---
+# --- 9. RESET ROUTE ---
 
 @app.route('/admin/reset-system', methods=['POST'])
 @login_required
 def reset_system():
     if current_user.email != 'admin@test.gmail.com':
         return "Denied", 403
-    
     try:
-        # Delete orders first
         db.session.query(Order).delete()
-        # Delete users except admin
         User.query.filter(User.email != 'admin@test.gmail.com').delete()
         db.session.commit()
         flash("System Reset: All test data cleared.")
     except Exception as e:
         db.session.rollback()
         flash(f"Error: {e}")
-        
     return redirect(url_for('admin_panel'))
 
 if __name__ == '__main__':
