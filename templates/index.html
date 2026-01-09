@@ -24,7 +24,6 @@
             padding: 0;
         }
 
-        /* Fixed Navigation */
         .navbar { 
             background: var(--evia-black) !important; 
             padding: 12px 0; 
@@ -40,7 +39,7 @@
             color: #000; 
             border-radius: 8px; 
             font-size: 13px; 
-            padding: 8px 35px 8px 15px; /* Added right padding for icon */
+            padding: 8px 35px 8px 15px;
             width: 100%;
         }
         .search-input:focus { 
@@ -49,7 +48,6 @@
             outline: none;
         }
         
-        /* Search Button Icon */
         .search-btn {
             position: absolute;
             right: 10px;
@@ -62,52 +60,30 @@
         }
 
         .cart-link { color: white !important; font-size: 20px; transition: 0.3s; }
-        .order-link { color: #888 !important; font-size: 12px; text-transform: uppercase; font-weight: 700; text-decoration: none; }
 
-        /* --- PERFECTED HERO BANNER CSS --- */
         .hero-banner { 
             background: var(--evia-dark); 
             color: white; 
             border-radius: 15px; 
-            padding: 40px 15px; /* Added more vertical padding */
+            padding: 40px 15px; 
             text-align: center; 
             margin: 20px 0;
             position: relative;
             overflow: hidden; 
-            /* High-end Pattern Background */
             background-image: linear-gradient(45deg, #111 25%, #1a1a1a 25%, #1a1a1a 50%, #111 50%, #111 75%, #1a1a1a 75%, #1a1a1a 100%);
             background-size: 56.57px 56.57px;
-            /* Flexbox to keep content centered and visible */
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            min-height: 130px; /* Ensures enough height for text */
+            min-height: 130px; 
             border: 1px solid #333;
         }
 
         .hero-banner h2 { 
-            font-weight: 800; 
-            font-size: 24px; /* Scaled for mobile */
-            letter-spacing: 4px; 
-            margin-bottom: 8px; 
-            position: relative;
-            z-index: 2;
-            text-transform: uppercase;
+            font-weight: 800; font-size: 24px; letter-spacing: 4px; text-transform: uppercase;
         }
 
-        .hero-banner p { 
-            font-size: 10px; 
-            font-weight: 600;
-            letter-spacing: 2px;
-            color: #888 !important; 
-            margin: 0;
-            position: relative;
-            z-index: 2;
-            text-transform: uppercase;
-        }
-
-        /* Product Card Styles */
         .product-card { 
             border-radius: 15px; border: 1px solid #f0f0f0; background: #fff; overflow: hidden; 
             transition: all 0.3s ease; height: 100%;
@@ -115,21 +91,12 @@
         .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
         
         .img-container { 
-            height: 220px; 
-            overflow: hidden; 
-            background: #fff; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px; 
+            height: 220px; overflow: hidden; background: #fff; display: flex;
+            align-items: center; justify-content: center; padding: 10px; 
         }
-        .img-container img { 
-            max-width: 100%; 
-            max-height: 100%; 
-            object-fit: contain; 
-        }
+        .img-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-        .product-title { font-size: 13px; font-weight: 600; color: #444; margin-bottom: 4px; line-height: 1.2; }
+        .product-title { font-size: 13px; font-weight: 600; color: #444; margin-bottom: 4px; }
         .product-price { font-weight: 800; font-size: 15px; color: var(--evia-black); }
 
         .btn-buy { 
@@ -137,18 +104,10 @@
             font-size: 11px; font-weight: 700; border: none; padding: 10px;
         }
 
-        footer {
-            background: #000000;
-            color: #ffffff;
-            margin-top: 50px;
-            padding: 40px 0;
-        }
-        footer a { color: #ffffff !important; text-decoration: none; }
+        footer { background: #000000; color: #ffffff; margin-top: 50px; padding: 40px 0; }
 
         @media (max-width: 991px) {
-            .navbar-collapse { 
-                background: #000; padding: 20px; border-bottom: 3px solid var(--evia-gold);
-            }
+            .navbar-collapse { background: #000; padding: 20px; border-bottom: 3px solid var(--evia-gold); }
         }
     </style>
 </head>
@@ -159,10 +118,8 @@
         <a class="navbar-brand" href="/">EVIA</a>
         
         <form class="search-group d-flex" action="/" method="GET">
-            <input class="form-control search-input" type="search" name="q" placeholder="Search products..." value="{{ request.args.get('q', '') }}">
-            <button type="submit" class="search-btn">
-                <i class="fa fa-search"></i>
-            </button>
+            <input class="form-control search-input" type="search" name="q" placeholder="Search..." value="{{ request.args.get('q', '') }}">
+            <button type="submit" class="search-btn"><i class="fa fa-search"></i></button>
         </form>
 
         <div class="d-flex align-items-center gap-3">
@@ -172,7 +129,6 @@
                     {{ cart_count if cart_count else 0 }}
                 </span>
             </a>
-            
             <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
                 <span class="fa fa-bars text-white" style="font-size: 22px;"></span>
             </button>
@@ -181,8 +137,11 @@
         <div class="collapse navbar-collapse" id="mainMenu">
             <div class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
+                    {% if current_user.email == 'admin@test.gmail.com' %}
+                        <a class="nav-link text-danger fw-bold" style="font-size: 12px; letter-spacing: 1px;" href="/admin">ADMIN PANEL</a>
+                    {% endif %}
                     <a class="nav-link text-warning fw-bold" href="/profile">MY ORDERS</a>
-                    <a class="btn btn-danger btn-sm mt-2 fw-bold" href="/logout">LOGOUT</a>
+                    <a class="btn btn-danger btn-sm mt-2 mt-lg-0 fw-bold" style="font-size: 10px;" href="/logout">LOGOUT</a>
                 {% else %}
                     <a class="nav-link text-white fw-bold" href="/login">LOGIN</a>
                     <a class="nav-link text-warning fw-bold" href="/signup">CREATE ACCOUNT</a>
@@ -214,7 +173,7 @@
                     </a>
                     <div class="px-3 pb-3 d-grid gap-2">
                         <a href="{{ url_for('add_to_cart', id=p.id) }}" class="btn-buy text-center text-decoration-none">
-                            <i class="fa fa-cart-plus me-1"></i> ADD TO CART
+                            ADD TO BAG
                         </a>
                         <a href="{{ url_for('buy_now', id=p.id) }}" class="btn btn-light btn-sm fw-bold" style="font-size: 10px; border-radius: 10px;">
                             BUY NOW
@@ -226,7 +185,7 @@
         {% else %}
             <div class="col-12 text-center py-5">
                 <h5 class="fw-bold">No items found</h5>
-                <a href="/" class="btn btn-dark btn-sm mt-2">Show all products</a>
+                <a href="/" class="btn btn-dark btn-sm mt-2">View All Products</a>
             </div>
         {% endif %}
     </div>
@@ -235,7 +194,7 @@
 <footer>
     <div class="container text-center">
         <p class="small mb-0">© 2026 EVIA CLOTHING </p>
-        <p class="small text-muted mb-0">created by webwiz</p>
+         <p class="small mb-0">created by webwiz </p>
     </div>
 </footer>
 
