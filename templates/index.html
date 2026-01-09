@@ -32,7 +32,7 @@
         }
         .navbar-brand { font-weight: 800; color: #fff !important; letter-spacing: 2px; }
         
-        .search-group { flex-grow: 1; margin: 0 12px; }
+        .search-group { flex-grow: 1; margin: 0 12px; position: relative; }
 
         .search-input { 
             background: #ffffff; 
@@ -40,13 +40,25 @@
             color: #000; 
             border-radius: 8px; 
             font-size: 13px; 
-            padding: 8px 15px;
+            padding: 8px 35px 8px 15px; /* Added right padding for icon */
             width: 100%;
         }
         .search-input:focus { 
             box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.25); 
             border-color: var(--evia-gold);
             outline: none;
+        }
+        
+        /* Search Button Icon */
+        .search-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
         }
 
         .cart-link { color: white !important; font-size: 20px; transition: 0.3s; }
@@ -148,6 +160,9 @@
         
         <form class="search-group d-flex" action="/" method="GET">
             <input class="form-control search-input" type="search" name="q" placeholder="Search products..." value="{{ request.args.get('q', '') }}">
+            <button type="submit" class="search-btn">
+                <i class="fa fa-search"></i>
+            </button>
         </form>
 
         <div class="d-flex align-items-center gap-3">
@@ -211,6 +226,7 @@
         {% else %}
             <div class="col-12 text-center py-5">
                 <h5 class="fw-bold">No items found</h5>
+                <a href="/" class="btn btn-dark btn-sm mt-2">Show all products</a>
             </div>
         {% endif %}
     </div>
