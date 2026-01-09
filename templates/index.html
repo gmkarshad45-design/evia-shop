@@ -44,8 +44,6 @@
             width: 100%;
         }
         .search-input:focus { 
-            background: #fff; 
-            color: #000; 
             box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.25); 
             border-color: var(--evia-gold);
             outline: none;
@@ -54,7 +52,50 @@
         .cart-link { color: white !important; font-size: 20px; transition: 0.3s; }
         .order-link { color: #888 !important; font-size: 12px; text-transform: uppercase; font-weight: 700; text-decoration: none; }
 
-        /* Modern Product Card */
+        /* --- PERFECTED HERO BANNER CSS --- */
+        .hero-banner { 
+            background: var(--evia-dark); 
+            color: white; 
+            border-radius: 15px; 
+            padding: 40px 15px; /* Added more vertical padding */
+            text-align: center; 
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden; 
+            /* High-end Pattern Background */
+            background-image: linear-gradient(45deg, #111 25%, #1a1a1a 25%, #1a1a1a 50%, #111 50%, #111 75%, #1a1a1a 75%, #1a1a1a 100%);
+            background-size: 56.57px 56.57px;
+            /* Flexbox to keep content centered and visible */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 130px; /* Ensures enough height for text */
+            border: 1px solid #333;
+        }
+
+        .hero-banner h2 { 
+            font-weight: 800; 
+            font-size: 24px; /* Scaled for mobile */
+            letter-spacing: 4px; 
+            margin-bottom: 8px; 
+            position: relative;
+            z-index: 2;
+            text-transform: uppercase;
+        }
+
+        .hero-banner p { 
+            font-size: 10px; 
+            font-weight: 600;
+            letter-spacing: 2px;
+            color: #888 !important; 
+            margin: 0;
+            position: relative;
+            z-index: 2;
+            text-transform: uppercase;
+        }
+
+        /* Product Card Styles */
         .product-card { 
             border-radius: 15px; border: 1px solid #f0f0f0; background: #fff; overflow: hidden; 
             transition: all 0.3s ease; height: 100%;
@@ -73,28 +114,17 @@
         .img-container img { 
             max-width: 100%; 
             max-height: 100%; 
-            width: auto;
-            height: auto;
             object-fit: contain; 
-            image-rendering: -webkit-optimize-contrast; 
         }
 
         .product-title { font-size: 13px; font-weight: 600; color: #444; margin-bottom: 4px; line-height: 1.2; }
         .product-price { font-weight: 800; font-size: 15px; color: var(--evia-black); }
-
-        .hero-banner { 
-            background: var(--evia-dark); color: white; border-radius: 15px; 
-            padding: 30px 20px; text-align: center; margin: 20px 0;
-            background-image: linear-gradient(45deg, #111 25%, #1a1a1a 25%, #1a1a1a 50%, #111 50%, #111 75%, #1a1a1a 75%, #1a1a1a 100%);
-            background-size: 56.57px 56.57px;
-        }
 
         .btn-buy { 
             background: var(--evia-black); color: white; border-radius: 10px; 
             font-size: 11px; font-weight: 700; border: none; padding: 10px;
         }
 
-        /* FOOTER: Black Background */
         footer {
             background: #000000;
             color: #ffffff;
@@ -102,25 +132,10 @@
             padding: 40px 0;
         }
         footer a { color: #ffffff !important; text-decoration: none; }
-        footer .text-muted { color: #888888 !important; }
 
-        /* MOBILE MENU FIX (Android & iPhone) */
         @media (max-width: 991px) {
             .navbar-collapse { 
-                background: #000; 
-                padding: 20px; 
-                position: absolute; 
-                top: 100%; 
-                left: 0; 
-                right: 0; 
-                z-index: 1050;
-                border-bottom: 3px solid var(--evia-gold);
-                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            }
-            .navbar-nav .nav-link {
-                padding: 12px 0;
-                border-bottom: 1px solid #222;
-                font-size: 14px;
+                background: #000; padding: 20px; border-bottom: 3px solid var(--evia-gold);
             }
         }
     </style>
@@ -136,10 +151,6 @@
         </form>
 
         <div class="d-flex align-items-center gap-3">
-            {% if current_user.is_authenticated %}
-            <a href="/profile" class="order-link d-none d-md-block text-warning">MY ORDERS</a>
-            {% endif %}
-            
             <a href="/cart" class="cart-link position-relative">
                 <i class="fa fa-shopping-bag"></i>
                 <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle" style="font-size: 9px;">
@@ -147,7 +158,7 @@
                 </span>
             </a>
             
-            <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu" aria-controls="mainMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
                 <span class="fa fa-bars text-white" style="font-size: 22px;"></span>
             </button>
         </div>
@@ -155,13 +166,8 @@
         <div class="collapse navbar-collapse" id="mainMenu">
             <div class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
-                    <a class="nav-link text-warning fw-bold d-md-none" href="/profile">MY ORDERS</a>
-                    {% if current_user.email == 'admin@test.gmail.com' %}
-                        <a class="nav-link text-info fw-bold" href="/admin">ADMIN PANEL</a>
-                    {% endif %}
-                    <div class="mt-3">
-                        <a class="btn btn-danger btn-sm w-100 fw-bold" href="/logout">LOGOUT</a>
-                    </div>
+                    <a class="nav-link text-warning fw-bold" href="/profile">MY ORDERS</a>
+                    <a class="btn btn-danger btn-sm mt-2 fw-bold" href="/logout">LOGOUT</a>
                 {% else %}
                     <a class="nav-link text-white fw-bold" href="/login">LOGIN</a>
                     <a class="nav-link text-warning fw-bold" href="/signup">CREATE ACCOUNT</a>
@@ -173,8 +179,8 @@
 
 <div class="container">
     <div class="hero-banner">
-        <h2 class="fw-800 mb-1">NEW ARRIVALS</h2>
-        <p class="small text-muted mb-0">LIMITED QUANTITY SURPLUS STOCK</p>
+        <h2>NEW ARRIVALS</h2>
+        <p>LIMITED QUANTITY SURPLUS STOCK</p>
     </div>
 
     <div class="row g-3">
@@ -204,9 +210,7 @@
             {% endfor %}
         {% else %}
             <div class="col-12 text-center py-5">
-                <i class="fa fa-search fa-3x text-muted mb-3"></i>
                 <h5 class="fw-bold">No items found</h5>
-                <a href="/" class="btn btn-dark rounded-pill px-4 btn-sm">Refresh Shop</a>
             </div>
         {% endif %}
     </div>
@@ -214,10 +218,6 @@
 
 <footer>
     <div class="container text-center">
-        <div class="d-flex justify-content-center gap-4 mb-3">
-            <a href="#"><i class="fab fa-instagram"></i></a>
-            <a href="#"><i class="fab fa-whatsapp"></i></a>
-        </div>
         <p class="small mb-0">© 2026 EVIA CLOTHING </p>
         <p class="small text-muted mb-0">created by webwiz</p>
     </div>
