@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import text # Needed for the database fix
+from sqlalchemy import text 
 
 app = Flask(__name__)
 
@@ -33,7 +33,7 @@ class Product(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     image = db.Column(db.String(500))
-    image_2 = db.Column(db.String(500))  # Second Image Support
+    image_2 = db.Column(db.String(500)) 
     description = db.Column(db.Text)
 
 class Order(db.Model):
@@ -48,15 +48,14 @@ class Order(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
-# --- DATABASE INITIALIZATION & FIX ---
+# --- DATABASE INITIALIZATION ---
 with app.app_context():
     db.create_all()
     try:
         db.session.execute(text('SELECT image_2 FROM product LIMIT 1'))
     except:
-        print("Fixing database: Adding image_2 column...")
         db.session.execute(text('ALTER TABLE product ADD COLUMN image_2 VARCHAR(500)'))
         db.session.commit()
 
@@ -70,10 +69,13 @@ def index():
 
 @app.route('/product/<int:id>')
 def product_detail(id):
-    product = Product.query.get_or_404(id)
+    product = db.session.get(Product, id)
+    if not product:
+        flash("Product not found")
+        return redirect(url_for('index'))
     return render_template('product_detail.html', product=product)
 
-# --- 4. CART & BUY LOGIC ---
+# --- 4. CART LOGIC ---
 @app.route('/add-to-cart/<int:id>')
 def add_to_cart(id):
     if 'cart' not in session or not isinstance(session['cart'], list):
@@ -94,7 +96,7 @@ def buy_now(id):
 @app.route('/cart')
 def cart_view():
     cart_ids = session.get('cart', [])
-    items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
+    items = [db.session.get(Product, p_id) for p_id in cart_ids if db.session.get(Product, p_id)]
     total = sum(i.price for i in items)
     return render_template('cart.html', items=items, total=total)
 
@@ -108,32 +110,42 @@ def remove_from_cart(id):
             session.modified = True
     return redirect(url_for('cart_view'))
 
-# --- 5. CHECKOUT ---
+# --- 5. CHECKOUT (FIXED) ---
 @app.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
     cart_ids = session.get('cart', [])
-    if not cart_ids: return redirect(url_for('index'))
+    if not cart_ids: 
+        return redirect(url_for('index'))
     
     user_address = request.form.get('address')
     user_whatsapp = request.form.get('whatsapp')
     
-    items = [Product.query.get(p_id) for p_id in cart_ids if Product.query.get(p_id)]
+    if not user_address or not user_whatsapp:
+        flash("Please provide address and WhatsApp number.")
+        return redirect(url_for('cart_view'))
+    
+    items = [db.session.get(Product, p_id) for p_id in cart_ids if db.session.get(Product, p_id)]
     details = ", ".join([p.name for p in items])
     total = sum(p.price for p in items)
     
-    new_order = Order(
-        product_details=details, 
-        total_price=total, 
-        user_id=current_user.id,
-        address=user_address,
-        whatsapp=user_whatsapp
-    )
-    db.session.add(new_order)
-    db.session.commit()
-    session.pop('cart', None)
-    flash("Order Placed Successfully!")
-    return redirect(url_for('profile'))
+    try:
+        new_order = Order(
+            product_details=details, 
+            total_price=total, 
+            user_id=current_user.id,
+            address=user_address,
+            whatsapp=user_whatsapp
+        )
+        db.session.add(new_order)
+        db.session.commit()
+        session.pop('cart', None)
+        flash("Order Placed Successfully!")
+        return redirect(url_for('profile'))
+    except Exception as e:
+        db.session.rollback()
+        flash("Error placing order. Please try again.")
+        return redirect(url_for('cart_view'))
 
 # --- 7. ADMIN ---
 @app.route('/admin')
@@ -155,10 +167,8 @@ def add_product():
     description = request.form.get('description')
     
     new_p = Product(
-        name=name, 
-        price=int(price), 
-        image=image, 
-        image_2=image_2,
+        name=name, price=int(price), 
+        image=image, image_2=image_2,
         description=description
     )
     db.session.add(new_p)
@@ -169,32 +179,11 @@ def add_product():
 @login_required
 def update_status(id, new_status):
     if current_user.email != 'admin@test.gmail.com': return "Denied", 403
-    try:
-        order = Order.query.get_or_404(id)
+    order = db.session.get(Order, id)
+    if order:
         order.status = new_status
         db.session.commit()
-        flash(f"Order #{id} status updated to {new_status}")
-    except Exception as e:
-        db.session.rollback()
-        flash("Error updating order status.")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/delete-product/<int:id>')
-@login_required
-def delete_product(id):
-    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
-    product = Product.query.get_or_404(id)
-    db.session.delete(product)
-    db.session.commit()
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/delete-order/<int:id>')
-@login_required
-def delete_order(id):
-    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
-    order = Order.query.get_or_404(id)
-    db.session.delete(order)
-    db.session.commit()
+        flash(f"Order updated to {new_status}")
     return redirect(url_for('admin_panel'))
 
 # --- 8. AUTHENTICATION ---
@@ -230,29 +219,26 @@ def login():
 @app.route('/profile')
 @login_required
 def profile():
-    orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.date_ordered.desc()).all()
-    return render_template('profile.html', orders=orders)
+    try:
+        orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.date_ordered.desc()).all()
+        return render_template('profile.html', orders=orders)
+    except Exception:
+        return "Error loading profile", 500
 
 @app.route('/logout')
 def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- 9. RESET ROUTE ---
-
 @app.route('/admin/reset-system', methods=['POST'])
 @login_required
 def reset_system():
     if current_user.email != 'admin@test.gmail.com':
         return "Denied", 403
-    try:
-        db.session.query(Order).delete()
-        User.query.filter(User.email != 'admin@test.gmail.com').delete()
-        db.session.commit()
-        flash("System Reset: All test data cleared.")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {e}")
+    db.session.query(Order).delete()
+    User.query.filter(User.email != 'admin@test.gmail.com').delete()
+    db.session.commit()
+    flash("System Reset Successful")
     return redirect(url_for('admin_panel'))
 
 if __name__ == '__main__':
