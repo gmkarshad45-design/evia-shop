@@ -17,6 +17,7 @@
             align-items: center; 
             height: 100vh; 
             margin: 0; 
+            padding: 0;
         }
         .login-card { 
             background: white; 
@@ -40,7 +41,10 @@
             border-radius: 10px; 
             box-sizing: border-box; 
             background: #fafafa;
-            font-size: 14px;
+            /* FIX: 16px prevents mobile browsers from auto-zooming on focus */
+            font-size: 16px; 
+            /* FIX: Ensures touch interactions are immediate */
+            touch-action: manipulation;
         }
         input:focus { outline: none; border-color: var(--evia-orange); background: #fff; }
 
@@ -55,6 +59,8 @@
             font-size: 15px; 
             font-weight: 700; 
             transition: transform 0.2s ease;
+            /* FIX: Removes 300ms tap delay on mobile */
+            touch-action: manipulation;
         }
         .btn:active { transform: scale(0.97); }
 
@@ -91,7 +97,13 @@
 
         <form method="POST">
             <label class="form-label">Email Address</label>
-            <input type="email" name="email" placeholder="name@example.com" required>
+            <input type="email" 
+                   name="email" 
+                   placeholder="name@example.com" 
+                   required 
+                   autocapitalize="none" 
+                   autocorrect="off" 
+                   spellcheck="false">
             
             <label class="form-label">Password</label>
             <input type="password" name="password" placeholder="••••••••" required>
