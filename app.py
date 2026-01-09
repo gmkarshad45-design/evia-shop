@@ -201,28 +201,7 @@ def delete_order(id):
     db.session.commit()
     return redirect(url_for('admin_panel'))
     
-    @app.route('/admin/reset-system', methods=['POST'])
-@login_required
-def reset_system():
-    # Security: Only allow the specific admin email to do this
-    if current_user.email != 'admin@test.gmail.com':
-        return "Denied", 403
-    
-    try:
-        # 1. Delete all Orders
-        db.session.query(Order).delete()
-        
-        # 2. Delete all Users EXCEPT the admin itself
-        # This prevents you from being logged out or losing admin access
-        User.query.filter(User.email != 'admin@test.gmail.com').delete()
-        
-        db.session.commit()
-        flash("System Reset: All test users and orders have been cleared.")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error during reset: {e}")
-        
-    return redirect(url_for('admin_panel'))
+    # --- 8. AUTHENTICATION (REPLACE YOUR EXISTING LOGIN/SIGNUP WITH THIS) ---
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -262,6 +241,27 @@ def profile():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+# --- 9. RESET ROUTE (THE NEW BUTTON) ---
+
+@app.route('/admin/reset-system', methods=['POST'])
+@login_required
+def reset_system():
+    if current_user.email != 'admin@test.gmail.com':
+        return "Denied", 403
+    
+    try:
+        # Delete orders first
+        db.session.query(Order).delete()
+        # Delete users except admin
+        User.query.filter(User.email != 'admin@test.gmail.com').delete()
+        db.session.commit()
+        flash("System Reset: All test data cleared.")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {e}")
+        
+    return redirect(url_for('admin_panel'))
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
