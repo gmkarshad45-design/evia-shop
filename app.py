@@ -60,9 +60,17 @@ with app.app_context():
         db.session.commit()
 
 # --- 3. MAIN ROUTES ---
+# Replace your current @app.route('/') with this:
 @app.route('/')
 def index():
-    products = Product.query.all()
+    query = request.args.get('q') # Gets the text from the search box
+    if query:
+        # This filters the database for names that contain your search word
+        products = Product.query.filter(Product.name.ilike(f'%{query}%')).all()
+    else:
+        # If no search, show everything
+        products = Product.query.all()
+        
     cart = session.get('cart', [])
     if not isinstance(cart, list): cart = []
     return render_template('index.html', products=products, cart_count=len(cart))
