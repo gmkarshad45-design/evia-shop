@@ -110,7 +110,7 @@ def remove_from_cart(id):
             session.modified = True
     return redirect(url_for('cart_view'))
 
-# --- 5. CHECKOUT (FIXED) ---
+# --- 5. CHECKOUT ---
 @app.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
@@ -146,6 +146,42 @@ def checkout():
         db.session.rollback()
         flash("Error placing order. Please try again.")
         return redirect(url_for('cart_view'))
+
+# --- 6. USER PROFILE & ORDER ACTIONS (CANCEL/RETURN) ---
+@app.route('/profile')
+@login_required
+def profile():
+    try:
+        orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.date_ordered.desc()).all()
+        return render_template('profile.html', orders=orders)
+    except Exception:
+        return "Error loading profile", 500
+
+@app.route('/cancel-order/<int:id>')
+@login_required
+def cancel_order(id):
+    order = db.session.get(Order, id)
+    if order and order.user_id == current_user.id:
+        if order.status == "Placed":
+            order.status = "Cancelled"
+            db.session.commit()
+            flash("Order has been cancelled.")
+        else:
+            flash("Order cannot be cancelled at this stage.")
+    return redirect(url_for('profile'))
+
+@app.route('/return-order/<int:id>')
+@login_required
+def return_order(id):
+    order = db.session.get(Order, id)
+    if order and order.user_id == current_user.id:
+        if order.status == "Delivered":
+            order.status = "Return Requested"
+            db.session.commit()
+            flash("Return request submitted.")
+        else:
+            flash("Return not available for this status.")
+    return redirect(url_for('profile'))
 
 # --- 7. ADMIN ---
 @app.route('/admin')
@@ -187,7 +223,6 @@ def update_status(id, new_status):
     return redirect(url_for('admin_panel'))
 
 # --- 8. AUTHENTICATION ---
-
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -215,15 +250,6 @@ def login():
             return redirect(url_for('index'))
         flash("Invalid Credentials")
     return render_template('login.html')
-
-@app.route('/profile')
-@login_required
-def profile():
-    try:
-        orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.date_ordered.desc()).all()
-        return render_template('profile.html', orders=orders)
-    except Exception:
-        return "Error loading profile", 500
 
 @app.route('/logout')
 def logout():
