@@ -56,10 +56,10 @@ def load_user(user_id):
 # --- DATABASE INITIALIZATION ---
 with app.app_context():
     db.create_all()
-    # Migration check: Adds image_2 column if it doesn't exist in existing database
+    # Migration check: Adds image_2 column if it doesn't exist
     try:
         db.session.execute(text('SELECT image_2 FROM product LIMIT 1'))
-    except:
+    except Exception:
         db.session.execute(text('ALTER TABLE product ADD COLUMN image_2 VARCHAR(500)'))
         db.session.commit()
 
@@ -68,7 +68,7 @@ with app.app_context():
 def index():
     query = request.args.get('q') 
     if query:
-        # Case-insensitive search
+        # Case-insensitive search for all devices
         products = Product.query.filter(Product.name.ilike(f'%{query}%')).all()
     else:
         products = Product.query.all()
@@ -247,11 +247,11 @@ def reset_system():
     flash("System Reset Successful")
     return redirect(url_for('admin_panel'))
 
-# --- 8. AUTHENTICATION (MOBILE FIXED) ---
+# --- 8. AUTHENTICATION (MOBILE GHOST FIX) ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        # Mobile Ghost Fix: Lowercase and Strip spaces
+        # FIX: Force lowercase and strip spaces for mobile keyboards
         email = request.form.get('email').lower().strip()
         full_name = request.form.get('full_name')
         password = request.form.get('password')
@@ -273,14 +273,14 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # Mobile Ghost Fix: Lowercase and Strip spaces
+        # FIX: Handle mobile auto-capitalization and hidden spaces
         email = request.form.get('email').lower().strip()
         password = request.form.get('password')
         
         user = User.query.filter_by(email=email).first()
         
         if user and check_password_hash(user.password, password):
-            # remember=True keeps user logged in on mobile browsers
+            # remember=True is vital for mobile browser persistence
             login_user(user, remember=True)
             return redirect(url_for('index'))
         
@@ -293,5 +293,6 @@ def logout():
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
+    # Dynamic port for Render/Heroku deployment
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
