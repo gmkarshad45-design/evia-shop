@@ -11,8 +11,11 @@ app = Flask(__name__)
 # --- 1. CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'evia_final_secret_2026')
 database_url = os.environ.get("DATABASE_URL", "sqlite:///evia_final_v18.db")
+
+# Fix for Heroku/Render PostgreSQL URL change
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -53,6 +56,7 @@ def load_user(user_id):
 # --- DATABASE INITIALIZATION ---
 with app.app_context():
     db.create_all()
+    # Migration check: Adds image_2 column if it doesn't exist in existing database
     try:
         db.session.execute(text('SELECT image_2 FROM product LIMIT 1'))
     except:
@@ -60,19 +64,18 @@ with app.app_context():
         db.session.commit()
 
 # --- 3. MAIN ROUTES ---
-# Replace your current @app.route('/') with this:
 @app.route('/')
 def index():
-    query = request.args.get('q') # Gets the text from the search box
+    query = request.args.get('q') 
     if query:
-        # This filters the database for names that contain your search word
+        # Case-insensitive search
         products = Product.query.filter(Product.name.ilike(f'%{query}%')).all()
     else:
-        # If no search, show everything
         products = Product.query.all()
         
     cart = session.get('cart', [])
-    if not isinstance(cart, list): cart = []
+    if not isinstance(cart, list): 
+        cart = []
     return render_template('index.html', products=products, cart_count=len(cart))
 
 @app.route('/product/<int:id>')
@@ -155,7 +158,7 @@ def checkout():
         flash("Error placing order. Please try again.")
         return redirect(url_for('cart_view'))
 
-# --- 6. USER PROFILE & ORDER ACTIONS (CANCEL/RETURN) ---
+# --- 6. USER PROFILE & ORDER ACTIONS ---
 @app.route('/profile')
 @login_required
 def profile():
@@ -191,11 +194,12 @@ def return_order(id):
             flash("Return not available for this status.")
     return redirect(url_for('profile'))
 
-# --- 7. ADMIN ---
+# --- 7. ADMIN PANEL ---
 @app.route('/admin')
 @login_required
 def admin_panel():
-    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    if current_user.email != 'admin@test.gmail.com': 
+        return "Denied", 403
     orders = Order.query.order_by(Order.date_ordered.desc()).all()
     products = Product.query.all() 
     return render_template('admin.html', orders=orders, products=products)
@@ -203,7 +207,8 @@ def admin_panel():
 @app.route('/admin/add-product', methods=['POST'])
 @login_required
 def add_product():
-    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    if current_user.email != 'admin@test.gmail.com': 
+        return "Denied", 403
     name = request.form.get('name')
     price = request.form.get('price')
     image = request.form.get('image')
@@ -222,7 +227,8 @@ def add_product():
 @app.route('/admin/update-status/<int:id>/<string:new_status>')
 @login_required
 def update_status(id, new_status):
-    if current_user.email != 'admin@test.gmail.com': return "Denied", 403
+    if current_user.email != 'admin@test.gmail.com': 
+        return "Denied", 403
     order = db.session.get(Order, id)
     if order:
         order.status = new_status
@@ -230,11 +236,22 @@ def update_status(id, new_status):
         flash(f"Order updated to {new_status}")
     return redirect(url_for('admin_panel'))
 
-# --- 8. AUTHENTICATION (FIXED) ---
+@app.route('/admin/reset-system', methods=['POST'])
+@login_required
+def reset_system():
+    if current_user.email != 'admin@test.gmail.com':
+        return "Denied", 403
+    db.session.query(Order).delete()
+    User.query.filter(User.email != 'admin@test.gmail.com').delete()
+    db.session.commit()
+    flash("System Reset Successful")
+    return redirect(url_for('admin_panel'))
+
+# --- 8. AUTHENTICATION (MOBILE FIXED) ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        # .lower() ignores Caps, .strip() removes accidental spaces from mobile keyboard
+        # Mobile Ghost Fix: Lowercase and Strip spaces
         email = request.form.get('email').lower().strip()
         full_name = request.form.get('full_name')
         password = request.form.get('password')
@@ -244,7 +261,6 @@ def signup():
             flash("Email already registered. Please login.")
             return redirect(url_for('login'))
         
-        # Using default hashing for better compatibility
         hashed_pw = generate_password_hash(password)
         new_user = User(full_name=full_name, email=email, password=hashed_pw)
         db.session.add(new_user)
@@ -257,14 +273,14 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # Same cleaning logic here
+        # Mobile Ghost Fix: Lowercase and Strip spaces
         email = request.form.get('email').lower().strip()
         password = request.form.get('password')
         
         user = User.query.filter_by(email=email).first()
         
         if user and check_password_hash(user.password, password):
-            # Added remember=True to keep users logged in on mobile browsers
+            # remember=True keeps user logged in on mobile browsers
             login_user(user, remember=True)
             return redirect(url_for('index'))
         
@@ -275,17 +291,6 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
-
-@app.route('/admin/reset-system', methods=['POST'])
-@login_required
-def reset_system():
-    if current_user.email != 'admin@test.gmail.com':
-        return "Denied", 403
-    db.session.query(Order).delete()
-    User.query.filter(User.email != 'admin@test.gmail.com').delete()
-    db.session.commit()
-    flash("System Reset Successful")
-    return redirect(url_for('admin_panel'))
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
