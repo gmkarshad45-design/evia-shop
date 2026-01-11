@@ -51,7 +51,7 @@
             margin-bottom: 20px;
         }
 
-        .input-group { margin-bottom: 16px; }
+        .input-group { margin-bottom: 16px; position: relative; }
 
         label {
             display: block;
@@ -68,7 +68,7 @@
             border: 1.5px solid var(--border-color); 
             border-radius: 12px; 
             box-sizing: border-box; 
-            font-size: 16px; /* 16px prevents iOS auto-zoom on focus */
+            font-size: 16px; /* Prevents iOS auto-zoom */
             transition: all 0.2s ease;
             background: #fff;
             touch-action: manipulation;
@@ -77,6 +77,17 @@
         input:focus {
             outline: none;
             border-color: var(--primary-black);
+        }
+
+        .toggle-btn {
+            position: absolute;
+            right: 15px;
+            top: 38px;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--accent-orange);
+            cursor: pointer;
+            z-index: 10;
         }
 
         .btn { 
@@ -90,7 +101,7 @@
             font-weight: 700; 
             font-size: 16px;
             margin-top: 10px;
-            touch-action: manipulation; /* Removes 300ms tap delay */
+            touch-action: manipulation;
         }
 
         .btn:active { transform: scale(0.98); opacity: 0.9; }
@@ -123,7 +134,7 @@
 <body>
     <div class="card">
         <div class="logo-area">
-            <h1>EVIA</h1>
+            <a href="/" style="text-decoration: none; color: inherit;"><h1>EVIA</h1></a>
         </div>
         
         <h2>Create your account</h2>
@@ -155,7 +166,8 @@
 
             <div class="input-group">
                 <label>Create Password</label>
-                <input type="password" name="password" placeholder="create password" required>
+                <input type="password" id="signupPass" name="password" placeholder="create password" required>
+                <span class="toggle-btn" onclick="toggleSignupPass()">SHOW</span>
             </div>
 
             <button type="submit" class="btn">Get Started</button>
@@ -165,5 +177,19 @@
             Already a member? <a href="/login">Sign in</a>
         </div>
     </div>
+
+    <script>
+        function toggleSignupPass() {
+            const passInput = document.getElementById('signupPass');
+            const btn = event.target;
+            if (passInput.type === 'password') {
+                passInput.type = 'text';
+                btn.innerText = 'HIDE';
+            } else {
+                passInput.type = 'password';
+                btn.innerText = 'SHOW';
+            }
+        }
+    </script>
 </body>
 </html>
