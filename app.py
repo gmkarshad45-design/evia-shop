@@ -236,6 +236,23 @@ def update_status(id, new_status):
         flash(f"Order updated to {new_status}")
     return redirect(url_for('admin_panel'))
 
+@app.route('/admin/delete-product/<int:id>')
+@login_required
+def delete_product(id):
+    # Security: Only the admin can delete
+    if current_user.email != 'admin@test.gmail.com':
+        return "Denied", 403
+    
+    product = db.session.get(Product, id)
+    if product:
+        db.session.delete(product)
+        db.session.commit()
+        flash(f"Product '{product.name}' deleted successfully.")
+    else:
+        flash("Product not found.")
+        
+    return redirect(url_for('admin_panel'))
+
 @app.route('/admin/reset-system', methods=['POST'])
 @login_required
 def reset_system():
